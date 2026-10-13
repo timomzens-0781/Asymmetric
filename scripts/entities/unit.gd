@@ -60,6 +60,7 @@ var _civ_state := "wander"
 var _civ_wait := 0.0
 var _civ_home: Structure = null
 var _film_t := 0.0
+var _unstick_t := 0.0
 var home_pos := Vector3.ZERO
 var rally := Vector3.ZERO
 var ai_role := ""
@@ -627,13 +628,20 @@ func _move(dt: float) -> void:
 				order_type = "idle"
 		_separate_idle(dt)
 		return
+	_unstick_t -= dt
+	if _unstick_t <= 0.0:
+		_unstick_t = 0.5
+		if world.nav.is_solid_at(position, grid):
+			position = world.nav.nearest_free_pos(position, grid, 6)
 	var wp := path[path_i]
 	var to := wp - position
 	to.y = 0.0
 	var d := to.length()
 	var reach := 0.7 + radius * 0.25
+	if layer != "foot":
+		reach = 1.6 + radius * 0.45
 	if path_i == path.size() - 1:
-		reach = 0.5 + radius * 0.15
+		reach = 0.5 + radius * 0.15 if layer == "foot" else 1.2 + radius * 0.5
 	if d < reach:
 		path_i += 1
 		return

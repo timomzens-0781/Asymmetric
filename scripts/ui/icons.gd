@@ -101,6 +101,9 @@ static func draw(ci: CanvasItem, kind: String, r: Rect2, c: Color) -> void:
 			ci.draw_line(P.call(0.5, 0.3), P.call(0.5, 0.7), c, lw * 1.2)
 			ci.draw_line(P.call(0.4, 0.4), P.call(0.6, 0.4), c, lw)
 			ci.draw_line(P.call(0.4, 0.6), P.call(0.6, 0.6), c, lw)
+		"pause":
+			ci.draw_rect(Rect2(P.call(0.26, 0.2), Vector2(0.17, 0.6) * s), c)
+			ci.draw_rect(Rect2(P.call(0.57, 0.2), Vector2(0.17, 0.6) * s), c)
 		"stop":
 			ci.draw_rect(Rect2(P.call(0.22, 0.22), Vector2(0.56, 0.56) * s), c)
 		"hold":

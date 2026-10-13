@@ -142,12 +142,13 @@ func _build_topbar() -> void:
 		b.custom_minimum_size = Vector2(30, 24)
 		b.size = Vector2(30, 24)
 		b.label = ["1×", "2×", "3×"][i]
+		b.center_text = true
 		topbar.add_child(b)
 		b.pressed.connect(_set_speed.bind([1.0, 2.0, 3.0][i]))
 		speed_btns.append(b)
 	var pb := CmdButton.new()
 	pb.size = Vector2(40, 30)
-	pb.icon = "stop"
+	pb.icon = "pause"
 	pb.tip_title = "Pause / Menü (Esc)"
 	topbar.add_child(pb)
 	pb.pressed.connect(func(): pause_clicked.emit())
@@ -215,12 +216,12 @@ func _layout() -> void:
 	topbar.size = Vector2(W, 62)
 	lbl_money.position = Vector2(14, 4)
 	lbl_income.position = Vector2(16, 36)
-	lbl_pop.position = Vector2(150, 8)
-	lbl_extra.position = Vector2(150, 30)
+	lbl_pop.position = Vector2(150, 3)
+	lbl_extra.position = Vector2(150, 23)
 	var mw := clampf(W * 0.38, 420.0, 640.0)
 	meter.size = Vector2(mw, 50)
 	meter.position = Vector2((W - mw) * 0.5, 4)
-	lbl_level.position = Vector2((W - mw) * 0.5, 46)
+	lbl_level.position = Vector2(150, 41)
 	lbl_time.position = Vector2(W - 150, 6)
 	for i in range(3):
 		(speed_btns[i] as Control).position = Vector2(W - 150 + i * 34, 34)
@@ -238,11 +239,9 @@ func _layout() -> void:
 	info.position = Vector2(226, 8)
 	info.size = Vector2(minf(W - 226 - 340, 700), bh - 16)
 	card.position = Vector2(W - 4 * 71 - 12, 8)
-	abil_panel.size = Vector2(80, 6 * 71 + 12 + (40 if team == U.TEAM_ADF else 0))
-	if team == U.TEAM_REB:
-		abil_panel.size = Vector2(80, 2 * 71 + 12)
-	abil_panel.position = Vector2(W - 92, 110)
-	abil_panel.size.y = abil.get_combined_minimum_size().y + 14
+	var n_ab := 6 if team == U.TEAM_ADF else 2
+	abil_panel.size = Vector2(80, n_ab * 71 + (41 if team == U.TEAM_ADF else 0) + 12)
+	abil_panel.position = Vector2(W - 92, 100)
 	abil.position = Vector2(6, 6)
 	banner.size = Vector2(minf(W * 0.8, 920), 62)
 	banner.position = Vector2((W - banner.size.x) * 0.5, 140)
@@ -263,8 +262,10 @@ func bind(w: World, p: PlayerController, r: RtsCamera, t: int) -> void:
 	minimap.bind(w, p, r)
 	meter.team = t
 	_build_ability_buttons()
-	player.selection_changed.connect(_on_selection_changed)
-	player.mode_changed.connect(_on_mode_changed)
+	if not player.selection_changed.is_connected(_on_selection_changed):
+		player.selection_changed.connect(_on_selection_changed)
+	if not player.mode_changed.is_connected(_on_mode_changed):
+		player.mode_changed.connect(_on_mode_changed)
 	_layout()
 	_card_sig = ""
 	_refresh_card(true)
@@ -374,7 +375,7 @@ func _build_card_items() -> Array:
 		for k in s.produces:
 			var d: Dictionary = Data.UNITS[k]
 			items.append({
-				"icon": d.icon, "label": d.name.substr(0, 11), "cost": d.cost,
+				"icon": d.icon, "label": d.get("short", d.name), "cost": d.cost,
 				"tip_title": "%s  (%s)" % [d.name, U.fmt_money(d.cost)],
 				"tip": d.desc + "\nAusbildungszeit: %ds · Truppenstärke: %d" % [int(d.time), d.pop] + "\nRechtsklick: letzte Bestellung stornieren",
 				"action": func(): _produce(s, k),
@@ -407,7 +408,7 @@ func _build_card_items() -> Array:
 	if any_weapons:
 		items.append({"icon": "attack_move", "label": "Angriff", "hotkey": "T", "tip_title": "Angriffsbewegung [T]", "tip": "Bewegt sich zum Ziel und bekämpft unterwegs alle erkannten Feinde.",
 			"action": func(): player.set_mode("attack_move")})
-		items.append({"icon": "hold", "label": "Feuer halt", "hotkey": "H", "tip_title": "Feuer halten [H]", "tip": "Einheiten eröffnen nicht von selbst das Feuer. Hilft, Zwischenfälle mit Zivilisten zu vermeiden.",
+		items.append({"icon": "hold", "label": "Halten", "hotkey": "H", "tip_title": "Feuer halten [H]", "tip": "Einheiten eröffnen nicht von selbst das Feuer. Hilft, Zwischenfälle mit Zivilisten zu vermeiden.",
 			"action": func():
 				for u in units:
 					if is_instance_valid(u):

@@ -59,7 +59,9 @@ func query(pos: Vector3, r: float) -> Array:
 		for cz in range(z0, z1 + 1):
 			var k := _key(cx, cz)
 			if cells.has(k):
-				out.append_array(cells[k])
+				for e in cells[k]:
+					if is_instance_valid(e):
+						out.append(e)
 	return out
 
 func query_unique(pos: Vector3, r: float) -> Array:
@@ -74,7 +76,7 @@ func query_unique(pos: Vector3, r: float) -> Array:
 			var k := _key(cx, cz)
 			if cells.has(k):
 				for e in cells[k]:
-					if e._qstamp != _stamp:
+					if is_instance_valid(e) and e._qstamp != _stamp:
 						e._qstamp = _stamp
 						out.append(e)
 	return out

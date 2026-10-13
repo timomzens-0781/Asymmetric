@@ -222,7 +222,6 @@ func _launcher_ops() -> void:
 			"home":
 				if Game.time - d.home_t > 14.0 or l.order_type == "idle":
 					d["state"] = "idle"
-		l.ai_data = d
 
 func _start_launch(l: Unit) -> void:
 	# Abschussposition: dicht besiedeltes Gebiet in Raketenreichweite der Basis
@@ -245,7 +244,9 @@ func _start_launch(l: Unit) -> void:
 		return
 	_launch_cd = [60.0, 38.0, 26.0][Game.difficulty] * _rng.randf_range(0.8, 1.25)
 	# Gleichzeitig nur ein Werfer unterwegs
-	l.ai_data = {"state": "go", "spot": best, "go_t": Game.time}
+	l.ai_data["state"] = "go"
+	l.ai_data["spot"] = best
+	l.ai_data["go_t"] = Game.time
 	l.cmd_move(best)
 
 func _pick_adf_target(from: Vector3) -> Structure:

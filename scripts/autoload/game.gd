@@ -159,8 +159,8 @@ func _process(dt: float) -> void:
 			footage -= amt
 			add_outrage(amt * 0.55)
 	# Natuerlicher Abbau der Empoerung
-	if time - _last_event_t > 25.0 and outrage > 0.0:
-		add_outrage(-0.05 * dt, true)
+	if time - _last_event_t > 30.0 and outrage > 0.0:
+		add_outrage(-0.03 * dt, true)
 	# Nachrichtenticker
 	_news_t -= dt
 	if _news_t <= 0.0:
@@ -280,7 +280,7 @@ func _flush_civ_events() -> void:
 			if g.cause == "ambiguous":
 				sev = 0.45
 			var vis := footage_visibility(g.pos)
-			var raw: float = g.n * 0.78 * sev
+			var raw: float = g.n * 1.0 * sev
 			var cam: float = 1.0 if vis >= 0.99 else 0.55
 			var gain := raw * (0.45 + vis * 0.9)
 			# Rebellen-Seite: Material wird hochgeladen (Medien-Team) oder sickert durch

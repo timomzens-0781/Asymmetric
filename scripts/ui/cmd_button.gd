@@ -19,6 +19,7 @@ var active := false
 var accent := Color(0.85, 0.64, 0.25)
 var badge := ""
 var progress := -1.0
+var center_text := false
 var hovered := false
 var _sb := StyleBoxFlat.new()
 
@@ -69,10 +70,13 @@ func _draw() -> void:
 	if hotkey != "":
 		draw_string(font, Vector2(5, 14), hotkey, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.64, 0.25, 0.95))
 	if label != "":
-		draw_string(font, Vector2(0, size.y - 17), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, Color(0.85, 0.82, 0.74, 0.9))
-	if cost >= 0.0:
+		if center_text:
+			draw_string(font, Vector2(0, size.y * 0.5 + 5), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(0.93, 0.88, 0.76))
+		else:
+			draw_string(font, Vector2(0, size.y - 17), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, Color(0.85, 0.82, 0.74, 0.9))
+	if cost > 0.0:
 		var col := Color(0.55, 0.9, 0.5) if enabled else Color(0.9, 0.4, 0.35)
-		draw_string(font, Vector2(0, size.y - 5), U.fmt_money(cost) if cost > 0 else "gratis", HORIZONTAL_ALIGNMENT_CENTER, size.x, 11, col)
+		draw_string(font, Vector2(0, size.y - 5), U.fmt_money(cost), HORIZONTAL_ALIGNMENT_CENTER, size.x, 11, col)
 	if badge != "":
 		draw_circle(Vector2(size.x - 11, 12), 9, Color(0.85, 0.64, 0.25))
 		draw_string(font, Vector2(size.x - 20, 16), badge, HORIZONTAL_ALIGNMENT_CENTER, 18, 12, Color(0.1, 0.08, 0.05))

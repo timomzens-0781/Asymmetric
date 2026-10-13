@@ -149,8 +149,9 @@ func _draw_single(e: Entity, font: Font) -> void:
 	var y := 86.0
 	# Beschreibung (umbrochen)
 	var d := _desc(e)
-	if d != "":
-		var lines := _wrap(d, font, 11.5, size.x - 130)
+	var has_queue: bool = e is Structure and e.team == player.team and not (e as Structure).produces.is_empty()
+	if d != "" and not has_queue:
+		var lines := _wrap(d, font, 12.0, size.x - 140)
 		for ln in lines:
 			draw_string(font, Vector2(14, y), ln, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.82, 0.8, 0.72))
 			y += 15.0
@@ -177,10 +178,10 @@ func _draw_single(e: Entity, font: Font) -> void:
 			draw_string(font, Vector2(14, y), info, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.9, 0.5))
 			y += 16.0
 			if s.team == player.team and s.hub:
-				draw_string(font, Vector2(14, y), "Besatzung: %d/%d" % [s.garrisoned.size(), s.garrison_cap], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 1.0, 0.6))
+				draw_string(font, Vector2(300, y - 16), "Besatzung: %d/%d" % [s.garrisoned.size(), s.garrison_cap], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 1.0, 0.6))
 		# Warteschlange
 		if s.team == player.team and not s.produces.is_empty():
-			_draw_queue(s, Vector2(14, size.y - 54), font)
+			_draw_queue(s, Vector2(14, size.y - 52), font)
 
 func _occupancy_text(s: Structure) -> String:
 	if s.warned:

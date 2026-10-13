@@ -67,4 +67,7 @@ func _report(gm) -> void:
 				conc += 1
 		else:
 			civ += 1
+	for u in world.units:
+		if u.alive and u.kind == "reb_launcher":
+			print("   launcher @", u.position, " data=", u.ai_data, " order=", u.order_type, " path=", u.path.size(), "/", u.path_i, " conc=", u.concealed, " cd=", u.weapons[0].cdl)
 	print("t=%d adf=%d reb=%d(conc %d) civ=%d hubs=%d outrage=%.1f footage=%.1f budget=[%d,%d] level=%d fps=%d" % [gm.time, adf, reb, conc, civ, gm.alive_hubs(), gm.outrage, gm.footage, gm.budget[0], gm.budget[1], gm.level, Engine.get_frames_per_second()])

@@ -17,6 +17,7 @@ var _shot_i := 0
 var _quit_after := -1.0
 var _real_t := 0.0
 var _seed := 1337
+var _scenario_started := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -158,6 +159,10 @@ func _on_begin() -> void:
 	Engine.time_scale = float(_args.get("speed", 1.0))
 	Game.message("Einsatz beginnt. Viel Erfolg, Kommandeur.", "info", -1)
 	Sfx.play_ui("ready")
+	if _args.has("scenario") and not _scenario_started:
+		_scenario_started = true
+		var sc = load("res://tools/scenarios/%s.gd" % _args["scenario"])
+		sc.run(self)
 
 func _on_restart() -> void:
 	_start_match(side, difficulty, false)
@@ -230,6 +235,13 @@ func _handle_shots() -> void:
 		_take_shot()
 	if _quit_after > 0.0 and Game.time >= _quit_after:
 		get_tree().quit()
+
+func _take_shot_now(tag: String) -> void:
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	var path := "%s_%s.png" % [String(_args.get("shot", "/tmp/shot")), tag]
+	img.save_png(path)
+	print("shot saved: ", path)
 
 func _take_shot() -> void:
 	var idx := _shot_i

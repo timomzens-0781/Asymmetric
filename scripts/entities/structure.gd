@@ -84,6 +84,23 @@ func setup_base(w: World, k: String, t: int) -> void:
 	parts = model.get_meta("parts", {})
 	name = "%s_%d" % [k, id]
 
+func _make_selection_visual() -> void:
+	var holder := Node3D.new()
+	var m := Gfx.unshaded_mat(Color(0.45, 1.0, 0.5, 0.95), false, true)
+	var t := 0.45
+	for part in [[Vector3(0, 0.2, hz + t * 0.5), Vector3(hx * 2.0 + t * 2.0, 0.3, t)], [Vector3(0, 0.2, -hz - t * 0.5), Vector3(hx * 2.0 + t * 2.0, 0.3, t)],
+				[Vector3(hx + t * 0.5, 0.2, 0), Vector3(t, 0.3, hz * 2.0)], [Vector3(-hx - t * 0.5, 0.2, 0), Vector3(t, 0.3, hz * 2.0)]]:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		mi.mesh = bm
+		mi.position = part[0]
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(mi)
+	add_child(holder)
+	sel_node = holder
+
 func edge_dist(p: Vector3) -> float:
 	var dx := maxf(absf(p.x - position.x) - hx, 0.0)
 	var dz := maxf(absf(p.z - position.z) - hz, 0.0)

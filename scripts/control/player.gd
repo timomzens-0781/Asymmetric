@@ -52,11 +52,8 @@ func attach(w: World, r: RtsCamera, t: int) -> void:
 	world = w
 	rig = r
 	team = t
-	world.entity_deselected.connect(_on_entity_deselected)
-	world.shake_requested.connect(rig.on_shake)
-	# Kontrollring in die Welt haengen (damit er mit dem 3D-Raum rendert)
-	remove_child(_cursor_ring)
-	world.add_child(_cursor_ring)
+	if not world.entity_deselected.is_connected(_on_entity_deselected):
+		world.entity_deselected.connect(_on_entity_deselected)
 
 func _exit_tree() -> void:
 	if is_instance_valid(_cursor_ring):
