@@ -14,6 +14,7 @@ var edge_scroll := true
 var orbit_mode := false
 var shake := 0.0
 var _orbit_t := 0.0
+var intro := 0.0
 var _drag_rot := false
 var _rng := RandomNumberGenerator.new()
 const MIN_DIST := 14.0
@@ -108,7 +109,11 @@ func _apply(dt: float) -> void:
 	if dt > 0.0 and not orbit_mode:
 		var k := 1.0 - exp(-dt * 10.0)
 		focus = focus.lerp(target_focus, k)
-		dist = lerpf(dist, target_dist, 1.0 - exp(-dt * 9.0))
+		var dist_rate := 9.0
+		if intro > 0.0:
+			intro -= dt
+			dist_rate = 1.5
+		dist = lerpf(dist, target_dist, 1.0 - exp(-dt * dist_rate))
 		yaw = lerp_angle(yaw, target_yaw, 1.0 - exp(-dt * 10.0))
 	elif orbit_mode:
 		dist = lerpf(dist, target_dist, 1.0 - exp(-dt * 2.0))

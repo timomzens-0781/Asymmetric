@@ -153,6 +153,7 @@ func _assign_infantry() -> void:
 				u.cmd_garrison(s)
 		elif roll < 0.9:
 			u.ai_role = "roam"
+			u.hold = true      # Streuner schiessen erst, wenn die KI es befiehlt
 			var p := world.city.random_street_point(_rng)
 			if p.x > -30.0:
 				u.cmd_move(p)
@@ -161,6 +162,7 @@ func _assign_infantry() -> void:
 			if not hubs.is_empty():
 				var h: Structure = hubs[_rng.randi() % hubs.size()]
 				u.ai_role = "guard"
+				u.hold = true       # Waechter verraten den Tunnelknoten nicht durch Feuer
 				u.cmd_garrison(h)
 	# Rollen von Streunern auffrischen
 	for u in _all_units():
@@ -332,6 +334,13 @@ func _micro() -> void:
 	if enemies.is_empty():
 		return
 	var mine := _all_units()
+	# Waechter in Tunnelknoten oeffnen das Feuer erst, wenn der Feind nah ist
+	for u in mine:
+		if u.garrison != null and u.ai_role == "guard" and u.hold:
+			for e in enemies:
+				if U.dist2d(e.position, u.garrison.position) < 17.0:
+					u.hold = false
+					break
 	for u in mine:
 		if u.garrison != null or u.weapons.is_empty() or u.is_launcher or u.ai_role == "retreat":
 			continue
@@ -367,6 +376,7 @@ func _micro() -> void:
 			"reb_fighter":
 				# Streuner greifen an, wenn sie in der Ueberzahl sind
 				if u.ai_role == "roam" and bd < 22.0 and _local_odds(best.position) > 1.4:
+					u.hold = false
 					u.cmd_attack(best)
 
 func _local_odds(p: Vector3) -> float:

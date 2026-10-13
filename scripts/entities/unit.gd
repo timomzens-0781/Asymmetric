@@ -61,6 +61,10 @@ var _civ_wait := 0.0
 var _civ_home: Structure = null
 var _film_t := 0.0
 var _unstick_t := 0.0
+var _check_t := 0.0
+var _chase_t := 0.0
+var _am_repaths := 0
+var _check_repath := 0.0
 var home_pos := Vector3.ZERO
 var rally := Vector3.ZERO
 var ai_role := ""
@@ -152,6 +156,7 @@ func cmd_attack_move(p: Vector3) -> void:
 	_clear_orders()
 	order_type = "attack_move"
 	order_pos = p
+	_am_repaths = 0
 	_set_path(p)
 
 func cmd_attack(e: Entity) -> void:
@@ -164,6 +169,19 @@ func cmd_attack(e: Entity) -> void:
 	order_type = "attack"
 	order_target = e
 	target = e
+
+## Person kontrollieren (ADF): hingehen, 2 s abtasten, dann Ergebnis.
+func cmd_check(t: Unit) -> void:
+	if t == null or not t.alive or detect_range <= 0.0 or layer != "foot":
+		return
+	if garrison != null:
+		ungarrison()
+	_clear_orders()
+	order_type = "check"
+	order_target = t
+	_check_t = 0.0
+	_check_repath = 0.0
+	_set_path(t.position)
 
 func cmd_attack_ground(p: Vector3) -> void:
 	if weapons.is_empty():
@@ -315,6 +333,9 @@ func _sim_combat(dt: float) -> void:
 	if weapons.is_empty():
 		_sim_nonweapon(dt)
 		return
+	if order_type == "check":
+		_sim_check(dt)
+		return
 	# Salven
 	if _burst_left > 0:
 		_burst_t -= dt
@@ -340,7 +361,7 @@ func _sim_combat(dt: float) -> void:
 		_acq_t -= dt
 		if _acq_t <= 0.0:
 			_acq_t = 0.25 + randf() * 0.15
-			if target != null and (not target.alive or not _in_range_any(target, 1.25) or not world.can_auto_target(self, target)):
+			if target != null and (not target.alive or not world.can_auto_target(self, target) or not _target_still_valid(target)):
 				target = null
 			if target == null and not manual_only and not is_launcher and not hold:
 				target = world.find_target(self, _auto_range())
@@ -372,18 +393,22 @@ func _sim_combat(dt: float) -> void:
 	# Verfolgung / Annaeherung
 	var chase := order_type == "attack" or order_type == "attack_ground" or order_type == "attack_move"
 	if not in_range and chase:
-		if order_type != "attack_move" or true:
-			var want := _longest_range() * 0.85
+		_chase_t -= dt
+		if _chase_t <= 0.0:
+			_chase_t = 0.6
+			var want := _longest_range() * 0.8
 			if d > want:
-				var must_path := path_i >= path.size() or U.dist2d(path[path.size() - 1], t_pos) > 6.0
-				if must_path and (moving == false or _repath_cd()):
-					_set_path(t_pos)
+				var open_path := path_i >= path.size()
+				if open_path or U.dist2d(path[path.size() - 1], t_pos) > 5.0:
+					var from_t := (position - t_pos)
+					from_t.y = 0.0
+					var app := t_pos + (from_t.normalized() if from_t.length() > 0.1 else Vector3(1, 0, 0)) * want
+					_set_path(app)
 					_deploy_target = 0.0
-	elif in_range and (order_type == "attack" or order_type == "attack_ground"):
-		# in Reichweite: stehen bleiben (Fahrzeuge/Infanterie)
-		if order_type == "attack_ground" or is_launcher or kind == "adf_arty" or true:
-			path = PackedVector3Array()
-			path_i = 0
+	elif in_range and chase:
+		# in Reichweite: stehen bleiben und kaempfen
+		path = PackedVector3Array()
+		path_i = 0
 	# Ausrichten + Feuern
 	if in_range:
 		var aimed := _aim_at(t_pos, dt)
@@ -410,18 +435,37 @@ func _sim_combat(dt: float) -> void:
 	else:
 		_idle_turret(dt)
 
-func _sim_nonweapon(dt: float) -> void:
-	if film_range > 0.0:
-		_film_t -= dt
-	if kind == "adf_drone" and parts.has("rotor"):
-		pass
+func _sim_check(dt: float) -> void:
+	var t := order_target as Unit
+	if t == null or not t.alive or t.garrison != null:
+		order_type = "idle"
+		order_target = null
+		return
+	var d := U.dist2d(position, t.position)
+	if d > 3.4:
+		_check_t = 0.0
+		_check_repath -= dt
+		if _check_repath <= 0.0:
+			_check_repath = 0.8
+			_set_path(t.position)
+		return
+	# nah genug: stehen bleiben, Person ansehen
+	path = PackedVector3Array()
+	path_i = 0
+	heading = U.angle_toward(heading, atan2(t.position.x - position.x, t.position.z - position.z), turn * dt)
+	_check_t += dt
+	if _check_t >= 2.2:
+		order_type = "idle"
+		order_target = null
+		world.resolve_check(self, t)
 
-func _repath_cd() -> bool:
-	_repaths += 1
-	return _repaths < 6 or fmod(_anim_t, 1.0) < dt_hint()
+func _sim_nonweapon(_dt: float) -> void:
+	pass
 
-func dt_hint() -> float:
-	return 0.05
+func _target_still_valid(t: Entity) -> bool:
+	if order_type == "attack_move":
+		return U.dist2d(position, t.position) <= vision * 1.05
+	return _in_range_any(t, 1.25)
 
 func _in_range_any(t: Entity, mult: float) -> bool:
 	var d := U.dist2d(position, t.position) - t.radius * 0.6
@@ -544,7 +588,7 @@ func _sim_garrison(dt: float) -> void:
 		_acq_t = 0.3 + randf() * 0.2
 		if target != null and (not target.alive or not _in_range_any(target, 1.0) or not world.can_auto_target(self, target)):
 			target = null
-		if target == null and not is_launcher:
+		if target == null and not is_launcher and not hold:
 			target = world.find_target(self, _longest_range())
 	if target != null and target.alive:
 		var d := U.dist2d(position, target.position) - target.radius * 0.6
@@ -618,7 +662,14 @@ func _move(dt: float) -> void:
 		_move_air(dt)
 		return
 	if path_i >= path.size():
-		if order_type == "move" or order_type == "attack_move":
+		if order_type == "attack_move":
+			# nach dem Gefecht zum eigentlichen Ziel weitermarschieren
+			if target == null and U.dist2d(position, order_pos) > 5.0 and _am_repaths < 8:
+				_am_repaths += 1
+				_set_path(order_pos)
+			elif target == null:
+				order_type = "idle"
+		elif order_type == "move":
 			order_type = "idle"
 		elif order_type == "garrison":
 			var s := order_target as Structure

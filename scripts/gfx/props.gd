@@ -245,17 +245,28 @@ static func _rubble() -> ArrayMesh:
 	mb.ao_strength = 0.4
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
-	for i in range(14):
-		var s := rng.randf_range(0.5, 1.8)
-		var c := Color(0.55, 0.5, 0.43) * rng.randf_range(0.65, 1.1)
-		if i % 4 == 0:
-			c = Color(0.35, 0.3, 0.27)
-		var p := Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.4, 0.4)) * 4.0
-		p.y = rng.randf_range(0.15, 0.7) * (1.0 - p.length() / 5.0)
-		mb.box_t(p + Vector3(0, s * 0.3, 0), Vector3(s, s * 0.6, s * rng.randf_range(0.6, 1.2)), c, Vector3(rng.randf_range(-25, 25), rng.randf_range(0, 180), rng.randf_range(-25, 25)))
-	# Armiereisen
-	for i in range(4):
-		mb.box_t(Vector3(rng.randf_range(-1.5, 1.5), 1.2, rng.randf_range(-1.5, 1.5)), Vector3(0.05, 2.0, 0.05), Color(0.25, 0.2, 0.18), Vector3(rng.randf_range(-35, 35), 0, rng.randf_range(-35, 35)))
+	# Schutthaufen: flacher Huegel + viele kleine Brocken
+	mb.sphere(Vector3(0, 0.0, 0), 4.2, Color(0.5, 0.45, 0.38), Vector3(1.0, 0.3, 1.0), 4, 12)
+	mb.sphere(Vector3(0.6, 0.0, -0.4), 2.6, Color(0.42, 0.37, 0.32), Vector3(1.0, 0.45, 1.0), 4, 10)
+	for i in range(34):
+		var s := rng.randf_range(0.3, 1.25)
+		var c := Color(0.58, 0.52, 0.44) * rng.randf_range(0.6, 1.1)
+		if i % 5 == 0:
+			c = Color(0.3, 0.26, 0.23)
+		elif i % 7 == 0:
+			c = Color(0.62, 0.34, 0.24)   # Ziegel
+		var ang := rng.randf() * TAU
+		var rr := sqrt(rng.randf()) * 3.6
+		var p := Vector3(cos(ang) * rr, 0.0, sin(ang) * rr)
+		var h := (1.0 - rr / 4.2) * 1.1
+		mb.box_t(p + Vector3(0, h + s * 0.15, 0), Vector3(s, s * 0.55, s * rng.randf_range(0.6, 1.2)), c, Vector3(rng.randf_range(-30, 30), rng.randf_range(0, 180), rng.randf_range(-30, 30)))
+	# Betonplatten und Armiereisen
+	for i in range(5):
+		var ang2 := rng.randf() * TAU
+		var rr2 := rng.randf() * 2.4
+		mb.box_t(Vector3(cos(ang2) * rr2, 0.7, sin(ang2) * rr2), Vector3(rng.randf_range(1.2, 2.2), 0.18, rng.randf_range(0.9, 1.6)), Color(0.6, 0.58, 0.54), Vector3(rng.randf_range(-22, 22), rng.randf_range(0, 180), rng.randf_range(-22, 22)))
+	for i in range(6):
+		mb.box_t(Vector3(rng.randf_range(-2.2, 2.2), 1.1, rng.randf_range(-2.2, 2.2)), Vector3(0.05, 1.8, 0.05), Color(0.25, 0.2, 0.18), Vector3(rng.randf_range(-40, 40), 0, rng.randf_range(-40, 40)))
 	return mb.build(Gfx.vcol_mat(1.0, 0.0))
 
 static func _bush() -> ArrayMesh:

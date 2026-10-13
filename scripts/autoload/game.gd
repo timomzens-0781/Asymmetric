@@ -40,6 +40,7 @@ var _launch_alert_t := 0.0
 var _evidence_cd_t := 0.0
 var _hub_total := 0
 var _end_check_t := 0.0
+var _upload_hint_t := 0.0
 
 func start(side: int, diff: int, demo: bool) -> void:
 	player_team = side
@@ -102,18 +103,21 @@ func prod_speed(t: int) -> float:
 	return 1.0
 
 func income_rate(t: int) -> float:
+	# Schwierigkeit: Spieler bekommt auf "leicht" mehr, die KI auf "schwer" mehr
+	var mult := 1.0
+	if demo_mode:
+		mult = 1.0
+	elif t == player_team:
+		mult = [1.25, 1.0, 0.9][difficulty]
+	else:
+		mult = [0.75, 1.0, 1.25][difficulty]
 	if t == U.TEAM_ADF:
-		var base := 24.0
+		var base := 24.0 * mult
 		if level >= 1:
 			base *= 0.6
-		if difficulty == 0 and t == player_team:
-			base *= 1.25
 		return base
 	var hubs := alive_hubs()
-	var base := 3.2 * hubs * (1.0 + outrage / 80.0)
-	if difficulty == 0 and t == player_team:
-		base *= 1.2
-	return base
+	return 3.2 * hubs * (1.0 + outrage / 80.0) * mult
 
 func alive_hubs() -> int:
 	if world == null:
@@ -158,6 +162,10 @@ func _process(dt: float) -> void:
 			var amt := minf(footage, footage * leak * dt + 0.02 * dt)
 			footage -= amt
 			add_outrage(amt * 0.55)
+	# Hinweis fuer den menschlichen Rebellen-Spieler: Material wartet auf Upload
+	if player_team == U.TEAM_REB and not demo_mode and footage >= 5.0 and media_alive() > 0 and time - _upload_hint_t > 35.0:
+		_upload_hint_t = time
+		message_posted.emit("Videomaterial bereit – Upload mit F1 (+%.0f%% Empörung)" % (footage * 1.35), "good", U.TEAM_REB)
 	# Natuerlicher Abbau der Empoerung
 	if time - _last_event_t > 30.0 and outrage > 0.0:
 		add_outrage(-0.03 * dt, true)
@@ -434,24 +442,24 @@ func _check_end() -> void:
 	if ended or world == null or demo_mode:
 		return
 	if level >= 3 or outrage >= 99.9:
-		_end(U.TEAM_REB, "Die Weltöffentlichkeit hat gesprochen: Eine internationale Koalition greift ein. Aurelia hat den Krieg der Bilder verloren.")
+		_end(U.TEAM_REB, "outrage")
 		return
 	var hq_alive := false
 	for s in world.structures:
 		if s.alive and s.kind == "adf_hq":
 			hq_alive = true
 	if not hq_alive:
-		_end(U.TEAM_REB, "Die Kommandozentrale wurde zerstört. Die Hadar-Front feiert den Triumph.")
+		_end(U.TEAM_REB, "hq")
 		return
 	if alive_hubs() == 0 and time > 5.0:
-		_end(U.TEAM_ADF, "Das Tunnelnetzwerk der Hadar-Front ist zerschlagen. Die Stadt ist gesichert – bei vertretbarem Preis.")
+		_end(U.TEAM_ADF, "hubs")
 		return
 
-func _end(winner: int, text: String) -> void:
+func _end(winner: int, reason: String) -> void:
 	ended = true
 	running = false
 	var res := {
-		"winner": winner, "text": text, "time": time, "player_won": winner == player_team,
+		"winner": winner, "reason": reason, "time": time, "player_won": winner == player_team,
 		"stats": stats.duplicate(), "peak": peak_outrage, "outrage": outrage,
 	}
 	match_ended.emit(res)

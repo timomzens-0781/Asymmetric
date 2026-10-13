@@ -46,12 +46,24 @@ func _draw() -> void:
 	if player.dragging and player.drag_rect.size.length() > 6.0:
 		draw_rect(player.drag_rect, Color(0.5, 1.0, 0.55, 0.12))
 		draw_rect(player.drag_rect, Color(0.5, 1.0, 0.55, 0.9), false, 1.5)
+	# Namensschild am Cursor
+	var he := player.hover_entity
+	if he != null and is_instance_valid(he) and he.alive and player.mode == "normal" and not player.dragging:
+		var nm := InfoPanel.display_name(he, pt)
+		var tcol := U.team_color(he.team)
+		if he.team == U.TEAM_CIV or (he is Unit and he.team != pt and (he as Unit).is_disguised()):
+			tcol = Color(0.9, 0.9, 0.85)
+		var hint := ""
+		if he is Unit and (he as Unit).press:
+			hint = "  [Presse]"
+		var m2 := get_viewport().get_mouse_position()
+		_label_box(font, m2 + Vector2(16, -30), nm + hint, tcol)
 	# Zielinfo am Cursor
 	if player.mode == "ability" and not player.target_info.is_empty():
 		_draw_target_info(font)
-	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move":
+	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move" or player.mode == "check":
 		var m := get_viewport().get_mouse_position()
-		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen"}[player.mode]
+		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken"}[player.mode]
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
 
 func _bar(p: Vector2, w: float, f: float, col: Color) -> void:

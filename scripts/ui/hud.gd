@@ -32,6 +32,7 @@ var lbl_time: Label
 var lbl_extra: Label
 var lbl_level: Label
 var ticker_panel: Panel
+var ticker_clip: Control
 var ticker_label: Label
 var ticker_tag: Label
 var feed: VBoxContainer
@@ -157,8 +158,11 @@ func _build_topbar() -> void:
 
 func _build_ticker() -> void:
 	ticker_panel = _panel(root, Color(0.05, 0.05, 0.05, 0.88), Color(0.5, 0.1, 0.1), 1)
-	ticker_panel.clip_contents = true
-	ticker_label = _label(ticker_panel, "", 14, Color(0.95, 0.93, 0.85))
+	ticker_clip = Control.new()
+	ticker_clip.clip_contents = true
+	ticker_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ticker_panel.add_child(ticker_clip)
+	ticker_label = _label(ticker_clip, "", 14, Color(0.95, 0.93, 0.85))
 	ticker_tag = _label(ticker_panel, " LIVE ", 13, Color(1, 1, 1))
 	ticker_tag.add_theme_stylebox_override("normal", _style(Color(0.75, 0.1, 0.1)))
 
@@ -230,6 +234,8 @@ func _layout() -> void:
 	ticker_panel.position = Vector2(0, 62)
 	ticker_panel.size = Vector2(W, 28)
 	ticker_tag.position = Vector2(6, 3)
+	ticker_clip.position = Vector2(64, 0)
+	ticker_clip.size = Vector2(W - 70, 28)
 	feed.position = Vector2(12, 100)
 	feed.size = Vector2(520, 160)
 	var bh := 214.0
@@ -416,6 +422,9 @@ func _build_card_items() -> Array:
 						if u.hold:
 							u.target = null,
 			"toggle": "hold"})
+	if units.any(func(u): return u.detect_range > 0.0 and u.layer == "foot"):
+		items.append({"icon": "eye", "label": "Kontrolle", "hotkey": "C", "tip_title": "Person kontrollieren [C]", "tip": "Ein Soldat geht zur gewählten Person und überprüft sie 2 Sekunden. Entlarvt getarnte Kämpfer sicher – belästigt aber Zivilisten.",
+			"action": func(): player.set_mode("check"), "toggle": "check"})
 	if units.any(func(u): return u.manual_only):
 		items.append({"icon": "fire_ground", "label": "Feuerbefehl", "hotkey": "F", "tip_title": "Feuerbefehl [F]", "tip": "Wählt ein Bodenziel für Artillerie bzw. Raketenwerfer.",
 			"action": func(): player.set_mode("fire_ground")})
@@ -484,6 +493,8 @@ func _update_card_states() -> void:
 			act = player.mode == "attack_move"
 		if it.get("icon", "") == "fire_ground":
 			act = player.mode == "fire_ground"
+		if it.get("toggle", "") == "check":
+			act = player.mode == "check"
 		if b.enabled != en or b.active != act:
 			b.enabled = en
 			b.active = act
@@ -626,7 +637,11 @@ func _update_top() -> void:
 	lbl_time.text = U.fmt_time(Game.time)
 	var ex := ""
 	if team == U.TEAM_ADF:
-		ex = "Beweise: %d" % int(Game.evidence)
+		var rev := 0
+		for h in world.hubs:
+			if h.alive and h.revealed:
+				rev += 1
+		ex = "Tunnelknoten: %d (%d entdeckt)  ·  Beweise: %d" % [Game.alive_hubs(), rev, int(Game.evidence)]
 		ex += "  ·  ROE: %s" % ("frei" if world.roe_free[0] else "streng")
 	else:
 		ex = "Videomaterial: %d" % int(Game.footage)
@@ -661,7 +676,7 @@ func _update_ticker(dt: float) -> void:
 		var n: Dictionary = _ticker_queue.pop_front()
 		ticker_label.text = "●  " + n.text
 		ticker_label.add_theme_color_override("font_color", {"bad": Color(1.0, 0.7, 0.65), "good": Color(0.7, 1.0, 0.75)}.get(n.kind, Color(0.95, 0.93, 0.85)))
-		ticker_label.position = Vector2(get_viewport().get_visible_rect().size.x, 4)
+		ticker_label.position = Vector2(ticker_clip.size.x, 4)
 		_ticker_t = 60.0
 	else:
 		ticker_label.text = ""

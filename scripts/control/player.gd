@@ -226,6 +226,23 @@ func _left_press(mb: InputEventMouseButton) -> void:
 		Sfx.play_ui("click")
 		set_mode("normal")
 		return
+	if mode == "check":
+		var tgt := hover_entity
+		if tgt is Unit and tgt.team != team or (tgt is Civilian):
+			var best: Unit = null
+			var bd := 1e9
+			for u in _own_units():
+				if u.detect_range > 0.0 and u.layer == "foot":
+					var d := U.dist2d(u.position, tgt.position)
+					if d < bd:
+						bd = d
+						best = u
+			if best != null:
+				best.cmd_check(tgt as Unit)
+				world.fx.ring_ping(tgt.position, 2.0, Color(1.0, 0.9, 0.3, 0.9), 0.8)
+				Sfx.play_ui("click")
+		set_mode("normal")
+		return
 	if mode == "attack_move":
 		var us := _own_units()
 		_formation_order(us, hover_ground, true)
@@ -443,6 +460,9 @@ func _key(k: InputEventKey) -> void:
 		KEY_X:
 			for u in _own_units():
 				u.cmd_stop()
+		KEY_C:
+			if _own_units().any(func(u): return u.detect_range > 0.0 and u.layer == "foot"):
+				set_mode("check")
 		KEY_T:
 			if not _own_units().is_empty():
 				set_mode("attack_move")

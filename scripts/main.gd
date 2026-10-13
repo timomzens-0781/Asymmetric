@@ -77,8 +77,7 @@ func _make_world(demo: bool, play_side: int) -> void:
 	world.name = "World"
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(world)
-	Atmosphere.setup(world)
-	world.build(_seed, play_side, demo)
+	world.build(_seed, play_side, demo, 0.5 if demo else float(_args.get("tod", 0.0)))
 	Game.world = world
 	Game.start(play_side, difficulty, demo)
 	# KI-Gegner (im Demo beide Seiten)
@@ -125,7 +124,8 @@ func _start_match(s: int, d: int, skip_brief: bool) -> void:
 	rig.orbit_mode = false
 	rig.enabled = true
 	rig.target_dist = 52.0
-	rig.dist = 52.0
+	rig.dist = 105.0
+	rig.intro = 4.0
 	rig.yaw = 0.0 if s == U.TEAM_ADF else 0.5
 	rig.target_yaw = rig.yaw
 	if s == U.TEAM_ADF:
@@ -159,10 +159,35 @@ func _on_begin() -> void:
 	Engine.time_scale = float(_args.get("speed", 1.0))
 	Game.message("Einsatz beginnt. Viel Erfolg, Kommandeur.", "info", -1)
 	Sfx.play_ui("ready")
+	_show_tips(side)
 	if _args.has("scenario") and not _scenario_started:
 		_scenario_started = true
 		var sc = load("res://tools/scenarios/%s.gd" % _args["scenario"])
 		sc.run(self)
+
+func _show_tips(s: int) -> void:
+	var tips: Array = []
+	if s == U.TEAM_ADF:
+		tips = [
+			"Tipp: Schicke die Argus-Drohne voraus – sie entlarvt Verdächtige aus der Luft.",
+			"Tipp: Raketenabschüsse werden geortet. Prüfe vor dem Gegenschlag die Zivilisten im Radius!",
+			"Tipp: Gelbes \"?\" über einem Kopf = Verdacht. Mit C kontrollierst du eine Person.",
+			"Tipp: Kamera-Symbole zeigen Medien-Teams. Nicht schießen, wenn sie zusehen.",
+		]
+	else:
+		tips = [
+			"Tipp: Rechtsklick auf ein Haus – deine Kämpfer beziehen Stellung (Hinterhalt).",
+			"Tipp: Stelle Medien-Teams in die Nähe des Geschehens und veröffentliche mit F1.",
+			"Tipp: Raketenrampen (F = Feuerbefehl) provozieren – am besten aus belebten Vierteln.",
+			"Tipp: G = zivile Tarnung, B = Sprengfalle, H = Feuer halten für den perfekten Hinterhalt.",
+		]
+	var i := 0
+	for t in tips:
+		i += 1
+		var tm := get_tree().create_timer(4.0 + i * 7.0)
+		tm.timeout.connect(func():
+			if state == "playing":
+				Game.message(t, "info", -1))
 
 func _on_restart() -> void:
 	_start_match(side, difficulty, false)

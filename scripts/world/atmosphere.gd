@@ -53,4 +53,20 @@ static func setup(parent: Node, golden: float = 0.0) -> Dictionary:
 	sun.directional_shadow_split_1 = 0.28
 	sun.light_angular_distance = 0.6
 	parent.add_child(sun)
-	return {"env": env, "sun": sun, "we": we}
+	return {"env": env, "sun": sun, "we": we, "sky": sm}
+
+## k: 0 = Nachmittag, 1 = Daemmerung
+static func apply_time(a: Dictionary, k: float) -> void:
+	k = clampf(k, 0.0, 1.0)
+	var env: Environment = a.env
+	var sun: DirectionalLight3D = a.sun
+	var sm: ProceduralSkyMaterial = a.sky
+	sun.rotation_degrees = Vector3(lerpf(-42.0, -13.0, k), lerpf(38.0, 58.0, k), 0.0)
+	sun.light_color = Color(1.0, 0.93, 0.8).lerp(Color(1.0, 0.58, 0.3), k)
+	sun.light_energy = lerpf(1.45, 1.05, k)
+	sm.sky_top_color = Color(0.32, 0.5, 0.78).lerp(Color(0.16, 0.24, 0.45), k)
+	sm.sky_horizon_color = Color(0.86, 0.78, 0.64).lerp(Color(0.95, 0.52, 0.28), k)
+	sm.ground_horizon_color = sm.sky_horizon_color
+	env.ambient_light_energy = lerpf(0.6, 0.5, k)
+	env.fog_light_color = Color(0.86, 0.78, 0.65).lerp(Color(0.85, 0.5, 0.35), k)
+	env.tonemap_exposure = lerpf(0.82, 0.92, k)

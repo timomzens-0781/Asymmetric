@@ -281,7 +281,15 @@ func show_end(res: Dictionary, player_team: int) -> void:
 	var won: bool = res.player_won
 	_end_title.text = "SIEG" if won else "NIEDERLAGE"
 	_end_title.add_theme_color_override("font_color", Color(0.5, 0.95, 0.55) if won else Color(1.0, 0.4, 0.35))
-	_end_text.text = res.text
+	var texts := {
+		"outrage": ["Die Weltöffentlichkeit hat gesprochen: Eine internationale Koalition greift ein. Aurelia hat den Krieg der Bilder verloren – trotz überlegener Waffen.",
+			"Die Welt schaut hin, und die Verbündeten Aurelias wenden sich ab. Eine Koalition greift ein. Die Bilder haben gesiegt."],
+		"hq": ["Die Kommandozentrale wurde zerstört. Der Einsatz ist gescheitert.",
+			"Die Kommandozentrale des Giganten brennt. Die Hadar-Front feiert einen Triumph, der Qadira lange im Gedächtnis bleiben wird."],
+		"hubs": ["Das Tunnelnetzwerk der Hadar-Front ist zerschlagen. Die Stadt ist gesichert – die Frage ist nur, zu welchem Preis.",
+			"Der letzte Tunnelknoten ist gefallen. Ohne Nachschub und Rückzugsorte bricht der Widerstand zusammen."],
+	}
+	_end_text.text = (texts[res.reason][0] if player_team == U.TEAM_ADF else texts[res.reason][1])
 	var st: Dictionary = res.stats
 	var t := "Einsatzdauer: %s\n" % U.fmt_time(res.time)
 	t += "Höchste Empörung: %d%%\n" % int(round(res.peak))

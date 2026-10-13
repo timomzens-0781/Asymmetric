@@ -123,7 +123,15 @@ func door_pos(from: Vector3) -> Vector3:
 func exit_pos(vehicle: bool) -> Vector3:
 	var p: Vector3
 	if team == U.TEAM_ADF:
-		p = Vector3(position.x + randf_range(-hx * 0.6, hx * 0.6), 0, position.z + hz + (3.5 if vehicle else 2.0))
+		# Ausgang in Richtung Sammelplatz der Basis
+		var a := Vector3(-62, 0, 70) - position
+		a.y = 0.0
+		var dir := a.normalized() if a.length() > 1.0 else Vector3(0, 0, 1)
+		var tx := hx / maxf(absf(dir.x), 0.001)
+		var tz := hz / maxf(absf(dir.z), 0.001)
+		var t := minf(tx, tz)
+		var side := Vector3(-dir.z, 0, dir.x) * randf_range(-hx * 0.4, hx * 0.4)
+		p = position + dir * (t + (4.5 if vehicle else 2.5)) + side
 	else:
 		# Rebellen: Tuer zur naechsten Strasse / Mitte
 		var ang := randf() * TAU
@@ -186,6 +194,15 @@ func _tick_production(dt: float) -> void:
 			if team == Game.player_team and not Game.demo_mode:
 				Sfx.play_ui("ready")
 
+func _check_hub_exposed() -> void:
+	# Wer aus dem Tunnelknoten schiesst, wird von der Armee in der Naehe bemerkt
+	for o in world.dyn.query(position, 32.0):
+		if o is Unit and o.alive and o.team == U.TEAM_ADF and U.dist2d(o.position, position) < 30.0 and (o as Unit).layer != "air":
+			revealed = true
+			Game.message("Feuer aus einem Wohnhaus – Tunnelknoten entdeckt!", "good", U.TEAM_ADF)
+			Game.alert.emit(position, "identified")
+			return
+
 func _tunnel_emerge(u: Unit) -> void:
 	# ADF sieht Einheit aus dem Haus kommen -> Verdacht / Entdeckung
 	if revealed:
@@ -205,6 +222,8 @@ func _process(dt: float) -> void:
 	dt = minf(dt, 0.12)
 	if hot_t > 0.0:
 		hot_t -= dt
+		if hub and not revealed:
+			_check_hub_exposed()
 	if hit_flash > 0.0:
 		hit_flash -= dt
 	if team != U.TEAM_CIV or hub:

@@ -26,14 +26,21 @@ var _civ_t := 3.0
 var _entities_root: Node3D
 var ai_nodes: Array = []
 var adf_proxy: Entity
+var atmos: Dictionary = {}
+var tod_start := 0.0
+var _tod_t := 0.0
+var _tod_win := -1.0
 var civ_cap := 110
 var hubs: Array = []
 var destroyed_rects: Array = []
 var sim_speed_note := 1.0
 var _last_vis_player := -1
 
-func build(seed_value: int, side: int, demo: bool) -> void:
+func build(seed_value: int, side: int, demo: bool, tod: float = 0.0) -> void:
 	rng.seed = seed_value
+	tod_start = tod
+	atmos = Atmosphere.setup(self)
+	Atmosphere.apply_time(atmos, tod)
 	nav = Nav.new()
 	city = City.new()
 	city.name = "City"
@@ -302,8 +309,22 @@ func _process(dt: float) -> void:
 	if _civ_t <= 0.0:
 		_civ_t = 4.0
 		_civ_tick()
+	_tod_t -= dt
+	if _tod_t <= 0.0:
+		_tod_t = 1.0
+		_update_tod()
 	if city != null:
 		city.flush_scorch()
+
+func _update_tod() -> void:
+	var k := minf(tod_start + time / 1100.0, 0.85)
+	Atmosphere.apply_time(atmos, k)
+	var win := clampf((k - 0.4) * 1.7, 0.0, 0.85)
+	if absf(win - _tod_win) > 0.04:
+		_tod_win = win
+		for b in city.buildings:
+			if b.mat != null:
+				b.mat.set_shader_parameter("emissive_win", win)
 
 func _rebuild_dyn() -> void:
 	dyn.clear()
@@ -442,7 +463,7 @@ func can_auto_target(att: Entity, e: Entity) -> bool:
 		var es := e as Structure
 		if t == U.TEAM_ADF:
 			if es.team == U.TEAM_REB:
-				if not es.revealed:
+				if not es.revealed and not (roe_free[0] and es.hot_t > 0.0):
 					return false
 			elif es.team == U.TEAM_CIV:
 				if not (roe_free[0] and es.hot_t > 0.0):
@@ -642,7 +663,7 @@ func structure_destroyed(s: Structure, attacker: Entity, dtype: String) -> void:
 		tw.tween_callback(m.queue_free)
 	var rub := MeshInstance3D.new()
 	rub.mesh = Props.get_mesh("rubble")
-	rub.scale = Vector3(s.size.x / 5.0, 1.0 + s.size.y * 0.05, s.size.z / 5.0)
+	rub.scale = Vector3(maxf(s.size.x / 7.5, 0.8), 0.8 + s.size.y * 0.03, maxf(s.size.z / 7.5, 0.8))
 	rub.rotation.y = rng.randf() * TAU
 	s.add_child(rub)
 	if s.team == U.TEAM_REB or s.hub:
@@ -673,6 +694,23 @@ func place_ied(u: Unit) -> bool:
 	m.setup_mine(self, u.position)
 	register_new(m)
 	return true
+
+func resolve_check(checker: Unit, t: Unit) -> void:
+	if t.team == U.TEAM_REB and t.can_conceal and t.concealed and not t.press:
+		t.suspicion = 100.0
+		t.reveal(14.0)
+		t.ident_mask |= 1
+		Game.message("Kontrolle: bewaffneter Kämpfer entlarvt!", "good", U.TEAM_ADF)
+		Game.alert.emit(t.position, "identified")
+		Sfx.play_ui("ready")
+	elif t.press:
+		Game.message("Kontrolle: Presse – keine Gefahr", "info", U.TEAM_ADF)
+	else:
+		Game.message("Kontrolle: Zivilist, keine Gefahr", "info", U.TEAM_ADF)
+		# Schikane: kleine Empörung
+		Game.add_outrage(0.2)
+		if t is Civilian:
+			(t as Civilian).panic_from(checker.position, 3.0)
 
 func adf_has_radar() -> bool:
 	for s in structures:

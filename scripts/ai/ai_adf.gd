@@ -140,7 +140,9 @@ func _manage_army() -> void:
 			arty.append(u)
 		elif u.kind == "adf_drone" and not u.has_meta("leaving"):
 			drones.append(u)
-	if army.size() < 5:
+	if army.size() < [10, 7, 5][Game.difficulty]:
+		return
+	if Game.time < [100.0, 70.0, 45.0][Game.difficulty] and not Game.demo_mode:
 		return
 	# Verdeckte Gefahr: Anzahl sichtbarer Feinde
 	var cen := _centroid(army)
@@ -302,6 +304,6 @@ func _use_support() -> void:
 		if U.dist2d(p, _last_scan_pos) > 22.0:
 			Game.use_ability(team, "scan", p)
 			_last_scan_pos = p
-			_scan_cd = 18.0
+			_scan_cd = [42.0, 26.0, 15.0][Game.difficulty]
 		else:
 			_scan_cd = 6.0

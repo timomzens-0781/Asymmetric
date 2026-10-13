@@ -33,18 +33,21 @@ func _gui_input(ev: InputEvent) -> void:
 					return
 
 func _disp_name(e: Entity) -> String:
+	return InfoPanel.display_name(e, player.team)
+
+static func display_name(e: Entity, pt: int) -> String:
 	if e is Unit:
 		var u := e as Unit
 		if u.is_civ:
 			return "Zivilist"
-		if u.team != player.team and u.is_disguised():
+		if u.team != pt and u.is_disguised():
 			return "Zivilist"
 		return u.def.get("name", u.kind)
 	if e is Structure:
 		var s := e as Structure
 		if s.kind_class == "base":
 			return s.def.get("name", s.kind)
-		if s.hub and (player.team == U.TEAM_REB or s.revealed):
+		if s.hub and (pt == U.TEAM_REB or s.revealed):
 			return "Tunnelknoten" + (" (entdeckt)" if s.revealed else "")
 		match s.kind_class:
 			"hospital": return "Klinik"
@@ -95,8 +98,8 @@ func _draw_hint(font: Font) -> void:
 			["EINSATZZIEL", Color(0.85, 0.64, 0.25), 14],
 			["Zerschlage alle Tunnelknoten der Hadar-Front – ohne die Weltöffentlichkeit zu verlieren.", Color(0.9, 0.88, 0.8), 13],
 			["Zivilisten und Journalisten sind keine Ziele. Jeder Fehlschlag steigt ins Netz.", Color(0.9, 0.88, 0.8), 13],
-			["Linksklick: wählen · Rahmen ziehen · Rechtsklick: Befehl · T: Angriffsbewegung", Color(0.7, 0.68, 0.6), 12],
-			["F1–F6: Unterstützung · Leertaste: letzter Alarm · R: Einsatzregeln", Color(0.7, 0.68, 0.6), 12],
+			["Linksklick: wählen · Rahmen ziehen · Rechtsklick: Befehl · T: Angriffsbewegung · C: Person kontrollieren", Color(0.7, 0.68, 0.6), 12],
+			["F1–F6: Unterstützung · Leertaste: letzter Alarm · R: Einsatzregeln · \"?\" über Köpfen = Verdacht", Color(0.7, 0.68, 0.6), 12],
 		]
 	else:
 		lines = [
