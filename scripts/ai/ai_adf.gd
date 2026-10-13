@@ -19,6 +19,7 @@ var _rng := RandomNumberGenerator.new()
 var _sectors: Array = []
 var _op_started := false
 var _hub_attack_t := 0.0
+var _next_strike_t := 0.0
 
 func _ready() -> void:
 	_rng.randomize()
@@ -165,7 +166,7 @@ func _manage_army() -> void:
 	if hub != null:
 		if _hub_attack_t <= 0.0 or not (U.dist2d(_army_target, hub.position) < 20.0):
 			_army_target = hub.door_pos(cen)
-			_hub_attack_t = 30.0
+			_hub_attack_t = [75.0, 55.0, 38.0][Game.difficulty]
 			need_new = false
 			_dispatch(army, _army_target, true)
 			_attack_hub(army, arty, hub)
@@ -228,7 +229,10 @@ func _attack_hub(army: Array, arty: Array, hub: Structure) -> void:
 			Game.use_ability(team, "warning", hub.position)
 	# Luft-/Praezisionsschlag nach Warnzeit
 	if _warned.has(hub.id) and Game.time - _warned[hub.id] > 9.0 or hub.occupants <= 3:
+		if Game.time < _next_strike_t:
+			return
 		if Game.outrage < 60.0 and Game.ability_ready(team, "precision") and Game.budget[team] > 1800.0:
+			_next_strike_t = Game.time + [90.0, 60.0, 40.0][Game.difficulty]
 			Game.use_ability(team, "precision", hub.position)
 		elif Game.outrage < 40.0 and Game.ability_ready(team, "airstrike") and Game.budget[team] > 1500.0:
 			Game.use_ability(team, "airstrike", hub.position)

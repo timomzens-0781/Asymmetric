@@ -63,6 +63,7 @@ func _test_suspicion() -> void:
 	var a := _free_spot(40, 10)
 	var recon := world.spawn_unit("adf_recon", 0, a)
 	var reb := world.spawn_unit("reb_fighter", 1, a + Vector3(6, 0, 0))
+	reb.hold = true
 	await _wait(0.5)
 	_check("Rebell startet getarnt", reb.concealed)
 	await _wait(8.0)

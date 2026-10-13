@@ -49,7 +49,7 @@ func start(side: int, diff: int, demo: bool) -> void:
 	running = true
 	ended = false
 	time = 0.0
-	budget = [4500.0, 1400.0]
+	budget = [4500.0, 2200.0]
 	if difficulty == 0:
 		budget[side] += 800.0
 	outrage = 0.0
