@@ -1,0 +1,14 @@
+# Godot 4
+.godot/
+.import/
+*.translation
+export_presets.cfg
+export/
+build/
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# local test output
+/shots/
