@@ -65,6 +65,10 @@ func start(side: int, diff: int, demo: bool) -> void:
 	_income_t = 0.0
 	_news_t = 25.0
 	_last_event_t = -99.0
+	_launch_alert_t = 0.0
+	_upload_hint_t = 0.0
+	_decay_t = 0.0
+	_end_check_t = 0.0
 	_rng.randomize()
 	stats = {
 		"civ_killed": 0, "civ_by_adf": 0, "civ_by_reb": 0, "adf_lost": 0, "reb_lost": 0,

@@ -776,6 +776,21 @@ func _street_props() -> void:
 			wreck_spots.append(p)
 	# Strommasten + Leitungen
 	_power_lines()
+	# Strassenmoebel: Baenke, Muelleimer, Schilder, Pflanzkuebel
+	for i in range(70):
+		var rd2: Dictionary = roads[rng.randi() % roads.size()]
+		var c2: Dictionary = rd2.c
+		var vert2: bool = rd2.vert
+		var side2 := 1.0 if rng.randf() < 0.5 else -1.0
+		var off2: float = side2 * (c2.w * 0.5 + 0.9)
+		var along2: float = rng.randf_range(c2.z0 + 8.0, c2.z1 - 8.0) if vert2 else rng.randf_range(c2.x0 + 8.0, c2.x1 - 8.0)
+		var q := Vector3(c2.x + off2, 0, along2) if vert2 else Vector3(along2, 0, c2.z + off2)
+		if _near_intersection(q, 6.0) or BASE_RECT.grow(3.0).has_point(Vector2(q.x, q.z)) or _blocked_for_prop(q):
+			continue
+		var yaw2 := (0.0 if vert2 else PI * 0.5) + (PI * 0.5 if side2 < 0 else -PI * 0.5)
+		var pick := rng.randi() % 4
+		var nm2: String = ["bench", "bin", "signpost", "planter"][pick]
+		_add_prop(nm2, q, yaw2, Color.WHITE)
 	# Betonbarrieren / Checkpoints
 	var cps := [Vector3(-42, 0, -20), Vector3(34, 0, 20), Vector3(-4, 0, 22), Vector3(34, 0, -55)]
 	for p in cps:

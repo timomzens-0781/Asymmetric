@@ -57,6 +57,8 @@ alle Modelle, Texturen, Effekte, Sounds und Musik werden prozedural erzeugt (Kos
 | Spielgeschwindigkeit | `+` / `−` |
 | Pause / Menü | `Esc` · Vollbild `F11` |
 
+Wird eine eigene Einheit beschossen, zeigt ein **roter Pfeil am Bildrand** (bzw. ein roter Ring auf dem Bildschirm) die Richtung und Entfernung des Feuergefechts; `Leertaste` springt dorthin.
+
 Gebäude (Fabrik, Kaserne, Tunnelknoten …) anklicken, um Einheiten zu bauen; Rechtsklick setzt den Sammelpunkt.
 
 ---

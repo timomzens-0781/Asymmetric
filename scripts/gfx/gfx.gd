@@ -5,15 +5,14 @@ extends RefCounted
 static var _cache: Dictionary = {}
 
 ## Standardmaterial fuer Vertex-Color-Meshes.
-static func vcol_mat(rough: float = 0.82, metal: float = 0.05) -> StandardMaterial3D:
+static func vcol_mat(rough: float = 0.82, metal: float = 0.05) -> Material:
 	var key := "vcol_%.2f_%.2f" % [rough, metal]
 	if _cache.has(key):
 		return _cache[key]
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.roughness = rough
-	m.metallic = metal
-	m.metallic_specular = 0.35
+	var m := ShaderMaterial.new()
+	m.shader = load("res://scripts/gfx/shaders/vcol.gdshader")
+	m.set_shader_parameter("rough", rough)
+	m.set_shader_parameter("metal", metal)
 	_cache[key] = m
 	return m
 

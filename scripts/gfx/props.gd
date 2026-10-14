@@ -27,6 +27,11 @@ static func get_mesh(name: String) -> ArrayMesh:
 		"hesco": m = _hesco()
 		"rubble": m = _rubble()
 		"dune_bush": m = _bush()
+		"bench": m = _bench()
+		"bin": m = _bin()
+		"signpost": m = _signpost()
+		"planter": m = _planter()
+		"ac_wall": m = _ac_wall()
 		_:
 			m = ArrayMesh.new()
 	_meshes[name] = m
@@ -268,6 +273,53 @@ static func _rubble() -> ArrayMesh:
 	for i in range(6):
 		mb.box_t(Vector3(rng.randf_range(-2.2, 2.2), 1.1, rng.randf_range(-2.2, 2.2)), Vector3(0.05, 1.8, 0.05), Color(0.25, 0.2, 0.18), Vector3(rng.randf_range(-40, 40), 0, rng.randf_range(-40, 40)))
 	return mb.build(Gfx.vcol_mat(1.0, 0.0))
+
+static func _bench() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	mb.jitter = 0.04
+	var wood := Color(0.45, 0.32, 0.2)
+	var steel := Color(0.2, 0.2, 0.22)
+	for i in range(4):
+		mb.box(Vector3(0, 0.5, -0.2 + i * 0.14), Vector3(1.8, 0.05, 0.11), wood)
+	for i in range(3):
+		mb.box(Vector3(0, 0.85 + i * 0.13, -0.38), Vector3(1.8, 0.1, 0.04), wood)
+	for sx in [-0.8, 0.8]:
+		mb.box(Vector3(sx, 0.25, 0.0), Vector3(0.06, 0.5, 0.5), steel)
+		mb.box(Vector3(sx, 0.65, -0.38), Vector3(0.06, 0.8, 0.06), steel)
+	return mb.build(Gfx.vcol_mat(0.9, 0.0))
+
+static func _bin() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	mb.cyl(Vector3(0, 0.45, 0), 0.34, 0.3, 0.9, Color(0.2, 0.32, 0.22), 10)
+	mb.cyl(Vector3(0, 0.93, 0), 0.36, 0.36, 0.06, Color(0.15, 0.25, 0.17), 10)
+	mb.box(Vector3(0.0, 0.6, 0.3), Vector3(0.14, 0.14, 0.02), Color(0.9, 0.9, 0.9))
+	return mb.build(Gfx.vcol_mat(0.7, 0.2))
+
+static func _signpost() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.cyl(Vector3(0, 1.4, 0), 0.04, 0.04, 2.8, Color(0.3, 0.3, 0.32), 6)
+	mb.cyl(Vector3(0.0, 2.55, 0.06), 0.4, 0.4, 0.04, Color(0.85, 0.15, 0.12), 10, 2)
+	mb.cyl(Vector3(0.0, 2.55, 0.09), 0.3, 0.3, 0.03, Color(0.95, 0.95, 0.95), 10, 2)
+	mb.box(Vector3(0.0, 2.55, 0.12), Vector3(0.5, 0.1, 0.02), Color(0.85, 0.15, 0.12))
+	mb.box(Vector3(0.6, 2.05, 0.06), Vector3(1.0, 0.3, 0.04), Color(0.15, 0.4, 0.2))
+	return mb.build(Gfx.vcol_mat(0.6, 0.2))
+
+static func _planter() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	mb.box(Vector3(0, 0.3, 0), Vector3(1.4, 0.6, 0.8), Color(0.62, 0.58, 0.5))
+	mb.box(Vector3(0, 0.55, 0), Vector3(1.2, 0.1, 0.6), Color(0.3, 0.2, 0.12))
+	for i in range(6):
+		mb.sphere(Vector3(-0.45 + i * 0.18, 0.78, (i % 2) * 0.12 - 0.06), 0.2, Color(0.25, 0.45, 0.2), Vector3(1, 0.8, 1), 3, 6)
+	return mb.build(Gfx.vcol_mat(0.9, 0.0))
+
+static func _ac_wall() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.box(Vector3(0, 0.3, 0.2), Vector3(0.8, 0.5, 0.4), Color(0.75, 0.75, 0.72))
+	mb.cyl(Vector3(0, 0.3, 0.42), 0.2, 0.2, 0.04, Color(0.15, 0.15, 0.15), 8, 2)
+	return mb.build(Gfx.vcol_mat(0.6, 0.2))
 
 static func _bush() -> ArrayMesh:
 	var mb := MeshBuilder.new()

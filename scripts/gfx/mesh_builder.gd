@@ -8,9 +8,12 @@ var xf := Transform3D.IDENTITY       # aktuelle Transformation (fuer verschachte
 var ao_floor := 0.0                  # unterhalb dieser Hoehe wird abgedunkelt (Fake-AO)
 var ao_strength := 0.0
 var _n_tris := 0
+var jitter := 0.0
+var _jr := RandomNumberGenerator.new()
 
 func _init() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_jr.seed = 1234
 
 func set_xf(pos: Vector3, rot_deg: Vector3 = Vector3.ZERO, scl: Vector3 = Vector3.ONE) -> void:
 	var b := Basis.from_euler(Vector3(deg_to_rad(rot_deg.x), deg_to_rad(rot_deg.y), deg_to_rad(rot_deg.z)))
@@ -83,7 +86,14 @@ func face(verts: Array, outward: Vector3, col: Color) -> void:
 		_emit(verts[0], verts[i], verts[i + 1], outward, col)
 
 ## Quader. center = Mittelpunkt (lokal), size = Kantenlaengen.
+func _jit(c: Color) -> Color:
+	if jitter <= 0.0:
+		return c
+	var k := 1.0 + _jr.randf_range(-jitter, jitter)
+	return Color(c.r * k, c.g * k, c.b * k, c.a)
+
 func box(center: Vector3, size: Vector3, col: Color, top_col: Color = Color(0, 0, 0, 0)) -> void:
+	col = _jit(col)
 	var h := size * 0.5
 	var x0 := center.x - h.x
 	var x1 := center.x + h.x
@@ -109,6 +119,7 @@ func box_t(pos: Vector3, size: Vector3, col: Color, rot_deg: Vector3 = Vector3.Z
 
 ## Zylinder / Kegelstumpf entlang Y (axis 0), X (1) oder Z (2). Mittelpunkt center.
 func cyl(center: Vector3, r_bottom: float, r_top: float, height: float, col: Color, sides: int = 10, axis: int = 0, caps: bool = true) -> void:
+	col = _jit(col)
 	var save := xf
 	var b := Basis.IDENTITY
 	if axis == 1:
@@ -162,6 +173,7 @@ func sphere(center: Vector3, r: float, col: Color, scl: Vector3 = Vector3.ONE, r
 
 ## Extrusion eines konvexen Polygons (x,z) von y0 bis y1.
 func extrude(poly: Array, y0: float, y1: float, col: Color, top_col: Color = Color(0, 0, 0, 0)) -> void:
+	col = _jit(col)
 	var n := poly.size()
 	var cen := Vector2.ZERO
 	for p in poly:
@@ -205,6 +217,34 @@ func wedge(center: Vector3, size: Vector3, col: Color) -> void:
 	face([Vector3(x0, y0, z0), Vector3(x1, y0, z0), Vector3(x1, y1, z0), Vector3(x0, y1, z0)], Vector3.FORWARD, col * 0.9)
 	face([Vector3(x1, y0, z0), Vector3(x1, y0, z1), Vector3(x1, y1, z0)], Vector3.RIGHT, col * 0.95)
 	face([Vector3(x0, y0, z0), Vector3(x0, y0, z1), Vector3(x0, y1, z0)], Vector3.LEFT, col * 0.95)
+
+## Quader zwischen zwei Punkten (Streben, Rohre, Kabel). thick = Querschnitt.
+func beam(a: Vector3, b: Vector3, thick: float, col: Color) -> void:
+	var d := b - a
+	var l := d.length()
+	if l < 0.001:
+		return
+	var z := d / l
+	var up := Vector3.UP if absf(z.y) < 0.95 else Vector3.RIGHT
+	var x := up.cross(z).normalized()
+	var y := z.cross(x).normalized()
+	var save := xf
+	xf = save * Transform3D(Basis(x, y, z), (a + b) * 0.5)
+	box(Vector3.ZERO, Vector3(thick, thick, l), col)
+	xf = save
+
+## Rad mit Reifenprofil und Nabe (Achse = X).
+func wheel(center: Vector3, r: float, w: float, tire: Color, hub: Color, treads: int = 14) -> void:
+	cyl(center, r, r, w, tire, 14, 1)
+	var side := signf(center.x) if absf(center.x) > 0.001 else 1.0
+	cyl(center + Vector3(side * w * 0.5, 0, 0), r * 0.62, r * 0.62, 0.06, hub, 12, 1)
+	cyl(center + Vector3(side * (w * 0.5 + 0.04), 0, 0), r * 0.22, r * 0.22, 0.08, hub * 0.7, 8, 1)
+	for i in range(8):
+		var ang := TAU * float(i) / 8.0
+		box(center + Vector3(side * (w * 0.5 + 0.04), sin(ang) * r * 0.4, cos(ang) * r * 0.4), Vector3(0.06, r * 0.08, r * 0.08), hub * 0.55)
+	for i in range(treads):
+		var ang2 := TAU * float(i) / treads
+		box_t(center + Vector3(0, sin(ang2) * r * 0.99, cos(ang2) * r * 0.99), Vector3(w * 1.03, r * 0.1, r * 0.3), tire * 0.7, Vector3(-rad_to_deg(ang2), 0, 0))
 
 func build(material: Material = null) -> ArrayMesh:
 	var m := st.commit()
