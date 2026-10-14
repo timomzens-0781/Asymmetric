@@ -7,6 +7,7 @@ var world: World
 var player: PlayerController
 var rig: RtsCamera
 var _t := 0.0
+var safe_rect := Rect2(0, 70, 1500, 700)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -42,6 +43,7 @@ func _draw() -> void:
 				if vp.has_point(p):
 					draw_string(font, p + Vector2(-5, 5), "✕" if false else "x", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.3, 0.2))
 					draw_arc(p, 8, 0, TAU, 12, Color(1.0, 0.3, 0.2), 2.0)
+	_draw_fire_alerts(font)
 	# Auswahlrahmen
 	if player.dragging and player.drag_rect.size.length() > 6.0:
 		draw_rect(player.drag_rect, Color(0.5, 1.0, 0.55, 0.12))
@@ -65,6 +67,49 @@ func _draw() -> void:
 		var m := get_viewport().get_mouse_position()
 		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken"}[player.mode]
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
+
+## Rote Pfeile am Bildschirmrand (bzw. Ringe auf dem Bildschirm) fuer Feuergefechte der eigenen Seite.
+func _draw_fire_alerts(font: Font) -> void:
+	var pulse := 0.5 + 0.5 * sin(_t * 9.0)
+	for c in Game.fire_clusters:
+		var age: float = Game.time - c.t
+		if age > 7.0:
+			continue
+		var a := clampf(1.0 - age / 7.0, 0.3, 1.0)
+		var p3 := Vector3(c.pos.x, 1.0, c.pos.z)
+		var behind := rig.cam.is_position_behind(p3)
+		var sp := rig.cam.unproject_position(p3)
+		if not behind and safe_rect.has_point(sp):
+			var rad := 30.0 + 5.0 * pulse
+			draw_arc(sp, rad, 0, TAU, 28, Color(1.0, 0.15, 0.1, 0.85 * a), 2.5)
+			for k in range(4):
+				var ang := k * PI * 0.5 + _t * 0.8
+				draw_line(sp + Vector2(cos(ang), sin(ang)) * (rad - 6.0), sp + Vector2(cos(ang), sin(ang)) * (rad + 8.0), Color(1.0, 0.2, 0.1, 0.9 * a), 2.5)
+			continue
+		var center := safe_rect.get_center()
+		var d := sp - center
+		if behind:
+			d = -d
+		if d.length() < 1.0:
+			d = Vector2.UP
+		var half := safe_rect.size * 0.5 - Vector2(26, 26)
+		var kx: float = half.x / absf(d.x) if absf(d.x) > 0.001 else 1e9
+		var ky: float = half.y / absf(d.y) if absf(d.y) > 0.001 else 1e9
+		var ep := center + d * minf(kx, ky)
+		var dir := d.normalized()
+		var perp := Vector2(-dir.y, dir.x)
+		var sc := 1.55 + 0.25 * pulse
+		var tip := ep + dir * 20.0 * sc
+		var b1 := ep - dir * 8.0 * sc + perp * 15.0 * sc
+		var b2 := ep - dir * 8.0 * sc - perp * 15.0 * sc
+		var nb := ep - dir * 1.0 * sc
+		var tri := PackedVector2Array([tip, b1, nb, b2])
+		draw_colored_polygon(PackedVector2Array([tip + dir * 3.0, b1 - dir * 3.0 + perp * 3.0, b2 - dir * 3.0 - perp * 3.0]), Color(0, 0, 0, 0.55 * a))
+		draw_colored_polygon(tri, Color(1.0, 0.12, 0.08, 0.95 * a))
+		var dist := U.dist2d(c.pos, rig.focus)
+		var txt := "%dm" % int(dist)
+		var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+		draw_string(font, ep - dir * 34.0 - Vector2(tw * 0.5, -4), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.7, 0.65, a))
 
 func _bar(p: Vector2, w: float, f: float, col: Color) -> void:
 	draw_rect(Rect2(p.x - w * 0.5 - 1, p.y - 1, w + 2, 6), Color(0, 0, 0, 0.75))

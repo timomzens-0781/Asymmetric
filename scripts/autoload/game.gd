@@ -41,6 +41,7 @@ var _evidence_cd_t := 0.0
 var _hub_total := 0
 var _end_check_t := 0.0
 var _upload_hint_t := 0.0
+var fire_clusters: Array = []     # Feuergefechte der eigenen Seite: {pos, t, alert_t}
 
 func start(side: int, diff: int, demo: bool) -> void:
 	player_team = side
@@ -59,6 +60,7 @@ func start(side: int, diff: int, demo: bool) -> void:
 	peak_outrage = 0.0
 	cooldowns = [{}, {}]
 	_civ_events.clear()
+	fire_clusters.clear()
 	_civ_flush_t = 0.0
 	_income_t = 0.0
 	_news_t = 25.0
@@ -71,6 +73,23 @@ func start(side: int, diff: int, demo: bool) -> void:
 	}
 	outrage_changed.emit(outrage)
 	level_changed.emit(level)
+
+## Eigene Einheit/Gebaeude wurde getroffen -> Feuergefecht-Markierung am Bildschirmrand
+func entity_hit(e: Entity) -> void:
+	if demo_mode or not running or e.team != player_team:
+		return
+	var pos := e.position
+	for c in fire_clusters:
+		if U.dist2d(c.pos, pos) < 26.0:
+			c.pos = (c.pos as Vector3).lerp(pos, 0.35)
+			c.t = time
+			if time - c.alert_t > 9.0:
+				c.alert_t = time
+				alert.emit(c.pos, "combat")
+			return
+	fire_clusters.append({"pos": pos, "t": time, "alert_t": time})
+	alert.emit(pos, "combat")
+	Sfx.play_ui("alert", -12.0)
 
 func stop() -> void:
 	running = false
@@ -143,6 +162,7 @@ func _process(dt: float) -> void:
 		_income_t -= 1.0
 		budget[0] += income_rate(0)
 		budget[1] += income_rate(1)
+	fire_clusters = fire_clusters.filter(func(c): return time - c.t < 8.0)
 	# Abklingzeiten
 	for t in range(2):
 		var cd: Dictionary = cooldowns[t]

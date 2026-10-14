@@ -9,6 +9,8 @@ signal speed_changed(mult: float)
 const C_PANEL := Color(0.075, 0.07, 0.065, 0.94)
 const C_EDGE := Color(0.85, 0.64, 0.25)
 const C_TEXT := Color(0.93, 0.9, 0.82)
+const TOP_H := 44.0
+const BOT_H := 138.0
 
 var world: World
 var player: PlayerController
@@ -109,7 +111,7 @@ func _build() -> void:
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.62, 1.0])
-	g.colors = PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.55)])
+	g.colors = PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.38)])
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
 	gt.fill = GradientTexture2D.FILL_RADIAL
@@ -130,14 +132,14 @@ func _build() -> void:
 
 func _build_topbar() -> void:
 	topbar = _panel(root)
-	lbl_money = _label(topbar, "$0", 24, Color(0.6, 0.95, 0.5))
+	lbl_money = _label(topbar, "$0", 21, Color(0.6, 0.95, 0.5))
 	lbl_income = _label(topbar, "+0/s", 12, Color(0.7, 0.8, 0.6))
-	lbl_pop = _label(topbar, "Truppen 0/0", 13, C_TEXT)
-	lbl_extra = _label(topbar, "", 12, Color(1.0, 0.9, 0.5))
+	lbl_pop = _label(topbar, "Truppen 0/0", 12, C_TEXT)
+	lbl_extra = _label(topbar, "", 11, Color(1.0, 0.9, 0.5))
 	meter = OutrageMeter.new()
 	topbar.add_child(meter)
-	lbl_level = _label(topbar, "", 12, Color(1.0, 0.45, 0.35))
-	lbl_time = _label(topbar, "00:00", 20, C_TEXT)
+	lbl_level = _label(topbar, "", 11, Color(1.0, 0.45, 0.35))
+	lbl_time = _label(topbar, "00:00", 17, C_TEXT)
 	for i in range(3):
 		var b := CmdButton.new()
 		b.custom_minimum_size = Vector2(30, 24)
@@ -182,14 +184,14 @@ func _build_bottom() -> void:
 	info.cancel_queue.connect(func(s, idx): s.cancel_unit(idx))
 	card = GridContainer.new()
 	card.columns = 4
-	card.add_theme_constant_override("h_separation", 5)
-	card.add_theme_constant_override("v_separation", 5)
+	card.add_theme_constant_override("h_separation", 4)
+	card.add_theme_constant_override("v_separation", 4)
 	bottom.add_child(card)
 
 func _build_abilities() -> void:
 	abil_panel = _panel(root, Color(0.07, 0.065, 0.06, 0.88), C_EDGE, 1)
 	abil = VBoxContainer.new()
-	abil.add_theme_constant_override("separation", 5)
+	abil.add_theme_constant_override("separation", 3)
 	abil_panel.add_child(abil)
 
 func _build_tooltip() -> void:
@@ -217,42 +219,47 @@ func _layout() -> void:
 	var W := sz.x
 	var H := sz.y
 	topbar.position = Vector2(0, 0)
-	topbar.size = Vector2(W, 62)
-	lbl_money.position = Vector2(14, 4)
-	lbl_income.position = Vector2(16, 36)
-	lbl_pop.position = Vector2(150, 3)
-	lbl_extra.position = Vector2(150, 23)
-	var mw := clampf(W * 0.38, 420.0, 640.0)
-	meter.size = Vector2(mw, 50)
-	meter.position = Vector2((W - mw) * 0.5, 4)
-	lbl_level.position = Vector2(150, 41)
-	lbl_time.position = Vector2(W - 150, 6)
+	topbar.size = Vector2(W, TOP_H)
+	lbl_money.position = Vector2(12, 1)
+	lbl_income.position = Vector2(14, 25)
+	lbl_pop.position = Vector2(150, 1)
+	lbl_extra.position = Vector2(150, 15)
+	lbl_level.position = Vector2(150, 29)
+	var mw := clampf(W * 0.36, 400.0, 620.0)
+	meter.size = Vector2(mw, 44)
+	meter.position = Vector2((W - mw) * 0.5, 3)
+	lbl_time.position = Vector2(W - 150, 1)
 	for i in range(3):
-		(speed_btns[i] as Control).position = Vector2(W - 150 + i * 34, 34)
-	(speed_btns[3] as Control).position = Vector2(W - 52, 14)
-	(speed_btns[3] as Control).position = Vector2(W - 54, 6)
-	ticker_panel.position = Vector2(0, 62)
-	ticker_panel.size = Vector2(W, 28)
-	ticker_tag.position = Vector2(6, 3)
-	ticker_clip.position = Vector2(64, 0)
-	ticker_clip.size = Vector2(W - 70, 28)
-	feed.position = Vector2(12, 100)
-	feed.size = Vector2(520, 160)
-	var bh := 214.0
-	bottom.position = Vector2(0, H - bh)
-	bottom.size = Vector2(W, bh)
-	minimap.position = Vector2(10, 8)
-	info.position = Vector2(226, 8)
-	info.size = Vector2(minf(W - 226 - 340, 700), bh - 16)
-	card.position = Vector2(W - 4 * 71 - 12, 8)
+		var b: Control = speed_btns[i]
+		b.size = Vector2(28, 18)
+		b.custom_minimum_size = Vector2(28, 18)
+		b.position = Vector2(W - 150 + i * 31, 24)
+	var pb: Control = speed_btns[3]
+	pb.size = Vector2(32, 30)
+	pb.custom_minimum_size = Vector2(32, 30)
+	pb.position = Vector2(W - 44, 7)
+	ticker_panel.position = Vector2(0, TOP_H)
+	ticker_panel.size = Vector2(W, 22)
+	ticker_tag.position = Vector2(6, 1)
+	ticker_clip.position = Vector2(60, 0)
+	ticker_clip.size = Vector2(W - 66, 22)
+	feed.position = Vector2(12, TOP_H + 28)
+	feed.size = Vector2(520, 140)
+	bottom.position = Vector2(0, H - BOT_H)
+	bottom.size = Vector2(W, BOT_H)
+	minimap.position = Vector2(8, 5)
+	info.position = Vector2(minimap.size.x + 16, 5)
+	info.size = Vector2(minf(W - minimap.size.x - 16 - 260, 640), BOT_H - 10)
+	card.position = Vector2(W - 4 * 58 - 8, 6)
 	var n_ab := 6 if team == U.TEAM_ADF else 2
-	abil_panel.size = Vector2(80, n_ab * 71 + (41 if team == U.TEAM_ADF else 0) + 12)
-	abil_panel.position = Vector2(W - 92, 100)
-	abil.position = Vector2(6, 6)
-	banner.size = Vector2(minf(W * 0.8, 920), 62)
-	banner.position = Vector2((W - banner.size.x) * 0.5, 140)
+	abil_panel.size = Vector2(64, n_ab * 57 + (36 if team == U.TEAM_ADF else 0) + 8)
+	abil_panel.position = Vector2(W - 70, TOP_H + 30)
+	abil.position = Vector2(5, 4)
+	overlay.safe_rect = Rect2(8, TOP_H + 28, W - 86, H - BOT_H - TOP_H - 32)
+	banner.size = Vector2(minf(W * 0.8, 920), 54)
+	banner.position = Vector2((W - banner.size.x) * 0.5, 110)
 	banner_sub.size = Vector2(banner.size.x, 30)
-	banner_sub.position = Vector2(banner.position.x, 206)
+	banner_sub.position = Vector2(banner.position.x, 168)
 
 # ============================================================================= Binden
 func bind(w: World, p: PlayerController, r: RtsCamera, t: int) -> void:
@@ -312,6 +319,7 @@ func _build_ability_buttons() -> void:
 		b.tip_title = "%s  [F%d]" % [d.name, i + 1]
 		b.tip_text = d.desc + ("\nKosten: %s · Abklingzeit %ds" % [U.fmt_money(d.cost), int(d.cd)])
 		b.accent = U.team_color(team)
+		b.custom_minimum_size = Vector2(54, 54)
 		abil.add_child(b)
 		b.pressed.connect(player.begin_ability.bind(id))
 		b.hover_changed.connect(_on_btn_hover)
@@ -319,8 +327,8 @@ func _build_ability_buttons() -> void:
 		i += 1
 	if team == U.TEAM_ADF:
 		roe_btn = CmdButton.new()
-		roe_btn.custom_minimum_size = Vector2(66, 36)
-		roe_btn.size = Vector2(66, 36)
+		roe_btn.custom_minimum_size = Vector2(54, 30)
+		roe_btn.size = Vector2(54, 30)
 		roe_btn.icon = "roe"
 		roe_btn.hotkey = "R"
 		roe_btn.tip_title = "Einsatzregeln [R]"
@@ -361,6 +369,7 @@ func _refresh_card(force: bool = false) -> void:
 		b.tip_title = it.get("tip_title", "")
 		b.tip_text = it.get("tip", "")
 		b.accent = U.team_color(team)
+		b.custom_minimum_size = Vector2(54, 54)
 		card.add_child(b)
 		b.pressed.connect(it.action)
 		if it.has("right"):

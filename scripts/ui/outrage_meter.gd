@@ -7,7 +7,7 @@ var team := 0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(560, 50)
+	custom_minimum_size = Vector2(400, 44)
 
 func _process(dt: float) -> void:
 	_t += dt
@@ -23,9 +23,9 @@ func _col_at(v: float) -> Color:
 func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var w := size.x
-	var bar := Rect2(0, 18, w, 14)
+	var bar := Rect2(0, 15, w, 12)
 	var title := "WELTÖFFENTLICHKEIT – EMPÖRUNG" if team == U.TEAM_ADF else "WELTWEITE EMPÖRUNG – DEIN SIEGPUNKT"
-	draw_string(font, Vector2(0, 12), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.93, 0.88, 0.76))
+	draw_string(font, Vector2(0, 11), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.93, 0.88, 0.76))
 	var v := Game.outrage
 	# Hintergrund
 	draw_rect(bar.grow(2), Color(0.0, 0.0, 0.0, 0.8))
@@ -58,12 +58,12 @@ func _draw() -> void:
 		draw_line(Vector2(mx - 1, bar.position.y - 4), Vector2(mx - 1, bar.end.y + 6), c, 2.0)
 		var txt: String = marks[i][1]
 		var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
-		draw_string(font, Vector2(mx - tw - 4 if mv >= 99.0 else mx - tw * 0.5, bar.end.y + 16), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, c)
+		draw_string(font, Vector2(mx - tw - 4 if mv >= 99.0 else mx - tw * 0.5, bar.end.y + 14), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, c)
 	# Zeiger + Zahl
 	var px := clampf(fill_w, 0.0, w)
-	draw_colored_polygon(PackedVector2Array([Vector2(px, bar.end.y + 1), Vector2(px - 5, bar.end.y + 8), Vector2(px + 5, bar.end.y + 8)]), Color(1, 1, 1))
+	draw_colored_polygon(PackedVector2Array([Vector2(px, bar.end.y + 1), Vector2(px - 4, bar.end.y + 6), Vector2(px + 4, bar.end.y + 6)]), Color(1, 1, 1))
 	var num := "%d%%" % int(round(v))
-	draw_string(font, Vector2(w - 54, 12), num, HORIZONTAL_ALIGNMENT_RIGHT, 54, 14, _col_at(v))
+	draw_string(font, Vector2(w - 54, 11), num, HORIZONTAL_ALIGNMENT_RIGHT, 54, 13, _col_at(v))
 	# Pulsieren bei Stufe >= 1
 	if Game.level >= 1:
 		var p := 0.5 + 0.5 * sin(_t * (3.0 + Game.level * 2.0))

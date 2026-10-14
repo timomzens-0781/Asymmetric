@@ -44,6 +44,7 @@ func take_damage(amount: float, attacker: Entity, dtype: String, from_pos: Vecto
 		return
 	hp -= dmg
 	hit_flash = 0.12
+	Game.entity_hit(self)
 	if attacker != null:
 		last_attacker = attacker
 	_on_damaged(dmg, attacker, dtype)

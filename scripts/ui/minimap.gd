@@ -8,7 +8,7 @@ var rig: RtsCamera
 var _base: ImageTexture
 var _pings: Array = []     # {pos, kind, t}
 var _drag := false
-const SIZE := 200.0
+var SIZE := 126.0
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(SIZE + 4, SIZE + 4)

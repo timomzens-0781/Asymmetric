@@ -12,7 +12,7 @@ var _hit_queue: Array = []     # {rect, structure, idx}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	custom_minimum_size = Vector2(560, 190)
+	custom_minimum_size = Vector2(400, 120)
 
 func _process(_dt: float) -> void:
 	queue_redraw()
@@ -95,96 +95,89 @@ func _draw_hint(font: Font) -> void:
 	var lines: Array = []
 	if player.team == U.TEAM_ADF:
 		lines = [
-			["EINSATZZIEL", Color(0.85, 0.64, 0.25), 14],
-			["Zerschlage alle Tunnelknoten der Hadar-Front – ohne die Weltöffentlichkeit zu verlieren.", Color(0.9, 0.88, 0.8), 13],
-			["Zivilisten und Journalisten sind keine Ziele. Jeder Fehlschlag steigt ins Netz.", Color(0.9, 0.88, 0.8), 13],
-			["Linksklick: wählen · Rahmen ziehen · Rechtsklick: Befehl · T: Angriffsbewegung · C: Person kontrollieren", Color(0.7, 0.68, 0.6), 12],
-			["F1–F6: Unterstützung · Leertaste: letzter Alarm · R: Einsatzregeln · \"?\" über Köpfen = Verdacht", Color(0.7, 0.68, 0.6), 12],
+			["EINSATZZIEL", Color(0.85, 0.64, 0.25), 13],
+			["Zerschlage alle Tunnelknoten der Hadar-Front – ohne die Weltöffentlichkeit zu verlieren.", Color(0.9, 0.88, 0.8), 12],
+			["Zivilisten und Journalisten sind keine Ziele. Jeder Fehlschlag steigt ins Netz.", Color(0.9, 0.88, 0.8), 12],
+			["Linksklick: wählen · Rahmen · Rechtsklick: Befehl · T: Angriffsbewegung · C: Person kontrollieren", Color(0.7, 0.68, 0.6), 11],
+			["F1–F6: Unterstützung · Leertaste: letzter Alarm · R: Einsatzregeln · gelbes \"?\" = Verdacht", Color(0.7, 0.68, 0.6), 11],
 		]
 	else:
 		lines = [
-			["DEIN ZIEL", Color(0.85, 0.64, 0.25), 14],
-			["Du gewinnst nicht durch Panzer, sondern durch Bilder: Treibe die Empörung auf 100%.", Color(0.9, 0.88, 0.8), 13],
-			["Halte Medien-Teams am Leben und veröffentliche Videomaterial (Upload).", Color(0.9, 0.88, 0.8), 13],
-			["Linksklick: wählen · Rechtsklick auf Haus: Hinterhalt · G: Tarnung · B: Sprengfalle", Color(0.7, 0.68, 0.6), 12],
-			["F1: Upload · F2: Spendenaufruf · V: Gebäude verlassen · Leertaste: letzter Alarm", Color(0.7, 0.68, 0.6), 12],
+			["DEIN ZIEL", Color(0.85, 0.64, 0.25), 13],
+			["Du gewinnst nicht durch Panzer, sondern durch Bilder: Treibe die Empörung auf 100%.", Color(0.9, 0.88, 0.8), 12],
+			["Halte Medien-Teams am Leben und veröffentliche Videomaterial (Upload).", Color(0.9, 0.88, 0.8), 12],
+			["Linksklick: wählen · Rechtsklick auf Haus: Hinterhalt · G: Tarnung · B: Sprengfalle", Color(0.7, 0.68, 0.6), 11],
+			["F1: Upload · F2: Spendenaufruf · V: Gebäude verlassen · Leertaste: letzter Alarm", Color(0.7, 0.68, 0.6), 11],
 		]
-	var y := 24.0
+	var y := 18.0
 	for l in lines:
-		draw_string(font, Vector2(14, y), l[0], HORIZONTAL_ALIGNMENT_LEFT, size.x - 24, l[2], l[1])
-		y += 22.0 if l[2] > 12 else 20.0
+		draw_string(font, Vector2(10, y), l[0], HORIZONTAL_ALIGNMENT_LEFT, size.x - 20, l[2], l[1])
+		y += 20.0 if l[2] > 11 else 18.0
 
-func _hp_bar(p: Vector2, w: float, f: float) -> void:
-	draw_rect(Rect2(p.x - 1, p.y - 1, w + 2, 12), Color(0, 0, 0, 0.8))
+func _hp_bar(p: Vector2, w: float, f: float, h: float = 8.0) -> void:
+	draw_rect(Rect2(p.x - 1, p.y - 1, w + 2, h + 2), Color(0, 0, 0, 0.8))
 	var col := Color(0.4, 0.9, 0.4) if f > 0.5 else (Color(0.95, 0.8, 0.2) if f > 0.25 else Color(0.95, 0.3, 0.2))
-	draw_rect(Rect2(p.x, p.y, w * clampf(f, 0, 1), 10), col)
+	draw_rect(Rect2(p.x, p.y, w * clampf(f, 0, 1), h), col)
 
 func _draw_single(e: Entity, font: Font) -> void:
 	if not is_instance_valid(e):
 		return
+	var disguised: bool = e is Unit and e.team != player.team and (e as Unit).is_disguised()
 	var tcol := U.team_color(e.team)
 	var nm := _disp_name(e)
-	if e.team == U.TEAM_CIV or (e is Unit and (e as Unit).is_civ) or (e is Unit and e.team != player.team and (e as Unit).is_disguised()):
+	if e.team == U.TEAM_CIV or (e is Unit and (e as Unit).is_civ) or disguised:
 		tcol = Color(0.85, 0.85, 0.8)
-	draw_string(font, Vector2(14, 24), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, tcol)
+	draw_string(font, Vector2(10, 18), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, tcol)
 	var fac := ""
 	if e.team == U.TEAM_ADF:
 		fac = "Aurelische Streitkräfte"
-	elif e.team == U.TEAM_REB and not (e is Unit and e.team != player.team and (e as Unit).is_disguised()) and not (e is Structure and not (e as Structure).revealed and player.team == U.TEAM_ADF):
+	elif e.team == U.TEAM_REB and not disguised and not (e is Structure and not (e as Structure).revealed and player.team == U.TEAM_ADF):
 		fac = "Hadar-Front"
 	elif e.team == U.TEAM_CIV or e is Structure:
 		fac = "Zivilbevölkerung"
-	draw_string(font, Vector2(14, 42), fac, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.68, 0.6))
-	# Trefferpunkte
+	draw_string(font, Vector2(10, 32), fac, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.7, 0.68, 0.6))
 	if e.team == player.team or e.seen_by(player.team):
-		_hp_bar(Vector2(14, 52), 250.0, e.hp / e.max_hp)
-		draw_string(font, Vector2(272, 62), "%d / %d" % [int(e.hp), int(e.max_hp)], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.9, 0.88, 0.8))
-	# Symbol groß
+		_hp_bar(Vector2(10, 40), 200.0, e.hp / e.max_hp)
+		draw_string(font, Vector2(218, 48), "%d / %d" % [int(e.hp), int(e.max_hp)], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.9, 0.88, 0.8))
 	var ik := "inf"
 	if e is Unit and not (e as Unit).is_civ:
 		ik = (e as Unit).def.get("icon", "inf")
 	elif e is Structure:
 		ik = "base" if (e as Structure).kind_class == "base" else ("hub" if (e as Structure).hub and player.team == U.TEAM_REB else "garrison")
-	if not (e is Unit and e.team != player.team and (e as Unit).is_disguised()):
-		draw_rect(Rect2(size.x - 100, 12, 84, 84), Color(0.1, 0.09, 0.08))
-		draw_rect(Rect2(size.x - 100, 12, 84, 84), tcol, false, 2.0)
-		Icons.draw(self, ik, Rect2(size.x - 92, 20, 68, 68), tcol)
-	var y := 86.0
-	# Beschreibung (umbrochen)
-	var d := _desc(e)
+	if not disguised:
+		draw_rect(Rect2(size.x - 62, 6, 54, 54), Color(0.1, 0.09, 0.08))
+		draw_rect(Rect2(size.x - 62, 6, 54, 54), tcol, false, 2.0)
+		Icons.draw(self, ik, Rect2(size.x - 56, 12, 42, 42), tcol)
+	var y := 64.0
 	var has_queue: bool = e is Structure and e.team == player.team and not (e as Structure).produces.is_empty()
+	var d := _desc(e)
 	if d != "" and not has_queue:
-		var lines := _wrap(d, font, 12.0, size.x - 140)
-		for ln in lines:
-			draw_string(font, Vector2(14, y), ln, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.82, 0.8, 0.72))
-			y += 15.0
-	y += 4.0
-	# Werte
+		var lines := _wrap(d, font, 11, size.x - 80)
+		for i in range(mini(lines.size(), 2)):
+			draw_string(font, Vector2(10, y), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.82, 0.8, 0.72))
+			y += 14.0
 	if e is Unit:
 		var u := e as Unit
 		if not u.weapons.is_empty() and u.team == player.team:
 			var w: Dictionary = u.weapons[0]
 			var st := "Reichweite %dm · Schaden %d · %s" % [int(w.range), int(w.damage), {"bullet": "Handfeuerwaffe", "ap": "Panzerabwehr", "he": "Flächenwirkung", "missile": "Lenkwaffe"}.get(w.type, "")]
-			draw_string(font, Vector2(14, y), st, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.8, 1.0))
-			y += 16.0
+			draw_string(font, Vector2(10, y), st, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.6, 0.8, 1.0))
+			y += 14.0
 		if u.team == player.team and u.can_conceal:
 			var s2 := "Getarnt" if u.concealed else ("ENTTARNT (%ds)" % ceil(u.exposed_t) if u.exposed_t > 0.0 else "Offen")
-			draw_string(font, Vector2(14, y), "Tarnung: " + s2 + (" · automatisch" if u.conceal_pref else " · aus"), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 0.95, 0.95) if u.concealed else Color(1.0, 0.6, 0.4))
+			draw_string(font, Vector2(10, y), "Tarnung: " + s2 + (" · automatisch" if u.conceal_pref else " · aus"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 0.95, 0.95) if u.concealed else Color(1.0, 0.6, 0.4))
 		elif player.team == U.TEAM_ADF and u.team == U.TEAM_REB and u.concealed and u.exposed_t <= 0.0 and u.suspicion > 5.0:
-			draw_string(font, Vector2(14, y), "Auffälligkeit: %d%% – beobachten oder Aufklärer/Drohne heranführen" % int(u.suspicion), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.9, 0.4))
+			draw_string(font, Vector2(10, y), "Auffälligkeit: %d%% – beobachten oder Aufklärer heranführen" % int(u.suspicion), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.9, 0.4))
 		elif u.press:
-			draw_string(font, Vector2(14, y), "Presse: Beschuss löst größte Empörung aus!", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.5, 0.4))
+			draw_string(font, Vector2(10, y), "Presse: Beschuss löst größte Empörung aus!", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.5, 0.4))
 	elif e is Structure:
 		var s := e as Structure
 		if s.kind_class != "base":
-			var info := _occupancy_text(s)
-			draw_string(font, Vector2(14, y), info, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.9, 0.5))
-			y += 16.0
+			draw_string(font, Vector2(10, y), _occupancy_text(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.9, 0.5))
 			if s.team == player.team and s.hub:
-				draw_string(font, Vector2(300, y - 16), "Besatzung: %d/%d" % [s.garrisoned.size(), s.garrison_cap], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 1.0, 0.6))
-		# Warteschlange
-		if s.team == player.team and not s.produces.is_empty():
-			_draw_queue(s, Vector2(14, size.y - 52), font)
+				draw_string(font, Vector2(260, y), "Besatzung: %d/%d" % [s.garrisoned.size(), s.garrison_cap], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 1.0, 0.6))
+		if has_queue:
+			_draw_queue(s, Vector2(10, size.y - 40), font)
 
 func _occupancy_text(s: Structure) -> String:
 	if s.warned:
@@ -217,24 +210,24 @@ func _wrap(text: String, font: Font, fs: float, width: float) -> Array:
 		lines.append(cur)
 	return lines
 
+
 func _draw_queue(s: Structure, pos: Vector2, font: Font) -> void:
-	draw_string(font, pos + Vector2(0, -4), "Produktion (Klick = abbrechen):", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.75, 0.72, 0.64))
 	for i in range(6):
-		var r := Rect2(pos + Vector2(i * 50, 2), Vector2(44, 44))
+		var r := Rect2(pos + Vector2(i * 38, 0), Vector2(34, 34))
 		draw_rect(r, Color(0.1, 0.09, 0.08))
 		draw_rect(r, Color(0.35, 0.3, 0.22), false, 1.5)
 		if i < s.queue.size():
 			var q: Dictionary = s.queue[i]
 			var d: Dictionary = Data.UNITS[q.kind]
-			Icons.draw(self, d.icon, r.grow(-8), Color(0.93, 0.88, 0.76))
+			Icons.draw(self, d.icon, r.grow(-6), Color(0.93, 0.88, 0.76))
 			if i == 0:
-				draw_rect(Rect2(r.position.x + 2, r.end.y - 6, (r.size.x - 4) * clampf(q.t / q.total, 0, 1), 4), Color(0.4, 0.85, 0.45))
+				draw_rect(Rect2(r.position.x + 2, r.end.y - 5, (r.size.x - 4) * clampf(q.t / q.total, 0, 1), 3), Color(0.4, 0.85, 0.45))
 			_hit_queue.append({"rect": r, "structure": s, "idx": i})
+	draw_string(font, pos + Vector2(6 * 38 + 6, 21), "◄ Produktion (Klick = abbrechen)", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.65, 0.62, 0.55))
 
 func _draw_multi(sel: Array, font: Font) -> void:
 	var n := sel.size()
-	draw_string(font, Vector2(14, 24), "%d Einheiten ausgewählt" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.93, 0.88, 0.76))
-	# Zusammenfassung nach Typ
+	draw_string(font, Vector2(10, 18), "%d Einheiten ausgewählt" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.93, 0.88, 0.76))
 	var counts: Dictionary = {}
 	for e in sel:
 		if is_instance_valid(e):
@@ -244,14 +237,14 @@ func _draw_multi(sel: Array, font: Font) -> void:
 	for k in counts.keys():
 		var nm: String = Data.UNITS[k].name if Data.UNITS.has(k) else (Data.STRUCTS[k].name if Data.STRUCTS.has(k) else k)
 		parts.append("%d× %s" % [counts[k], nm])
-	draw_string(font, Vector2(14, 42), ", ".join(parts), HORIZONTAL_ALIGNMENT_LEFT, size.x - 24, 12, Color(0.75, 0.72, 0.64))
-	var cols := 12
-	var cell := 42.0
-	for i in range(mini(n, 36)):
+	draw_string(font, Vector2(10, 33), ", ".join(parts), HORIZONTAL_ALIGNMENT_LEFT, size.x - 20, 11, Color(0.75, 0.72, 0.64))
+	var cell := 30.0
+	var cols := maxi(int((size.x - 20.0) / (cell + 3.0)), 4)
+	for i in range(mini(n, cols * 2)):
 		var e: Entity = sel[i]
 		if not is_instance_valid(e):
 			continue
-		var r := Rect2(Vector2(14 + (i % cols) * (cell + 3), 56 + (i / cols) * (cell + 8)), Vector2(cell, cell))
+		var r := Rect2(Vector2(10 + (i % cols) * (cell + 3), 40 + (i / cols) * (cell + 9)), Vector2(cell, cell))
 		draw_rect(r, Color(0.1, 0.09, 0.08))
 		draw_rect(r, U.team_color(e.team), false, 1.5)
 		var ik := "inf"
@@ -259,6 +252,6 @@ func _draw_multi(sel: Array, font: Font) -> void:
 			ik = (e as Unit).def.get("icon", "inf")
 		elif e is Structure:
 			ik = "base"
-		Icons.draw(self, ik, r.grow(-7), Color(0.93, 0.88, 0.76))
-		_hp_bar(Vector2(r.position.x, r.end.y + 1), cell, e.hp / e.max_hp)
+		Icons.draw(self, ik, r.grow(-5), Color(0.93, 0.88, 0.76))
+		_hp_bar(Vector2(r.position.x, r.end.y + 1), cell, e.hp / e.max_hp, 4.0)
 		_hit_icons.append({"rect": r, "entity": e})

@@ -24,7 +24,7 @@ var hovered := false
 var _sb := StyleBoxFlat.new()
 
 func _init() -> void:
-	custom_minimum_size = Vector2(66, 66)
+	custom_minimum_size = Vector2(54, 54)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_sb.set_corner_radius_all(5)
 	_sb.set_border_width_all(2)
@@ -63,8 +63,11 @@ func _draw() -> void:
 	draw_style_box(_sb, r)
 	var ic := Color(0.93, 0.88, 0.76) if enabled else Color(0.45, 0.42, 0.38)
 	if icon != "":
-		var ir := r.grow(-size.x * 0.2)
-		ir.position.y -= size.y * 0.04
+		var ir: Rect2
+		if label != "" or cost > 0.0:
+			ir = Rect2(size.x * 0.24, 4, size.x * 0.52, size.y * 0.5)
+		else:
+			ir = r.grow(-size.x * 0.2)
 		Icons.draw(self, icon, ir, ic)
 	var font := ThemeDB.fallback_font
 	if hotkey != "":
@@ -73,7 +76,7 @@ func _draw() -> void:
 		if center_text:
 			draw_string(font, Vector2(0, size.y * 0.5 + 5), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(0.93, 0.88, 0.76))
 		else:
-			draw_string(font, Vector2(0, size.y - 17), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, Color(0.85, 0.82, 0.74, 0.9))
+			draw_string(font, Vector2(0, size.y - 15), label, HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, Color(0.85, 0.82, 0.74, 0.9))
 	if cost > 0.0:
 		var col := Color(0.55, 0.9, 0.5) if enabled else Color(0.9, 0.4, 0.35)
 		draw_string(font, Vector2(0, size.y - 5), U.fmt_money(cost), HORIZONTAL_ALIGNMENT_CENTER, size.x, 11, col)
