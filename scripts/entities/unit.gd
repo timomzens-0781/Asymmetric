@@ -42,6 +42,7 @@ var tunnel_t := 0.0                 # > 0: gerade im Tunnelnetz unterwegs (Ziel 
 var tunnel_dur := 0.0
 var tunnel_pts := PackedVector3Array()   # Hubs der Route (fuer die Anzeige)
 var tunnel_len := 0.0
+var tunnel_ready := 0.0               # frueheste erneute Tunnelreise (Weltzeit)
 var moving := false
 var air_h := 0.0
 var _acq_t := 0.0
@@ -296,7 +297,7 @@ func ungarrison() -> void:
 
 ## Tunnelreise: aus dem Tunnelknoten, in dem die Einheit sitzt, in einen anderen Knoten des Netzes.
 func cmd_tunnel(dest: Structure) -> bool:
-	if team != U.TEAM_REB or layer != "foot" or garrison == null or tunnel_t > 0.0:
+	if team != U.TEAM_REB or layer != "foot" or garrison == null or tunnel_t > 0.0 or world.time < tunnel_ready:
 		return false
 	if not garrison.hub or dest == null or not dest.alive or not dest.hub or dest == garrison:
 		return false
@@ -315,6 +316,7 @@ func cmd_tunnel(dest: Structure) -> bool:
 	tunnel_len = world.route_length(route)
 	tunnel_dur = 2.5 + tunnel_len / World.TUNNEL_SPEED
 	tunnel_t = tunnel_dur
+	tunnel_ready = world.time + tunnel_dur + 12.0
 	position = Vector3(dest.position.x, 0.0, dest.position.z)
 	if selected:
 		world.deselect_entity(self)

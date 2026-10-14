@@ -6,6 +6,7 @@ var report_every := 15.0
 var _next_report := 15.0
 var side := 0
 var demo := true
+var diff := 1
 
 func _ready() -> void:
 	var speed := 4.0
@@ -16,6 +17,8 @@ func _ready() -> void:
 			speed = float(a.substr(6))
 		elif a.begins_with("side="):
 			side = int(a.substr(5))
+		elif a.begins_with("diff="):
+			diff = int(a.substr(5))
 		elif a.begins_with("demo="):
 			demo = a.substr(5) == "1"
 	Engine.time_scale = speed
@@ -27,7 +30,7 @@ func _ready() -> void:
 	world.build(1337, side, demo)
 	print("world built in ", Time.get_ticks_msec() - t0, " ms: units=", world.units.size(), " structures=", world.structures.size(), " hubs=", world.hubs.size())
 	gm.world = world
-	gm.start(side, 1, demo)
+	gm.start(side, diff, demo)
 	if ResourceLoader.exists("res://scripts/ai/ai_adf.gd"):
 		var a = load("res://scripts/ai/ai_adf.gd").new()
 		a.world = world
@@ -49,6 +52,11 @@ func _process(_dt: float) -> void:
 	if gm.time >= sim_seconds or gm.ended:
 		_report(gm)
 		print("final stats: ", gm.stats)
+		print("attrib: ", gm.attrib)
+		print("timeline events: ", gm.timeline.size())
+		for e in gm.timeline:
+			if e.kind in ["hub_found", "hub"]:
+				print("  ", U.fmt_time(e.t), " ", e.kind, " ", e.text)
 		get_tree().quit()
 
 func _report(gm) -> void:
@@ -68,6 +76,10 @@ func _report(gm) -> void:
 		else:
 			civ += 1
 	for u in world.units:
-		if u.alive and u.kind == "reb_launcher":
+		if false and u.alive and u.kind == "reb_launcher":
 			print("   launcher @", u.position, " data=", u.ai_data, " order=", u.order_type, " path=", u.path.size(), "/", u.path_i, " conc=", u.concealed, " cd=", u.weapons[0].cdl)
-	print("t=%d adf=%d reb=%d(conc %d) civ=%d hubs=%d outrage=%.1f footage=%.1f budget=[%d,%d] level=%d fps=%d" % [gm.time, adf, reb, conc, civ, gm.alive_hubs(), gm.outrage, gm.footage, gm.budget[0], gm.budget[1], gm.level, Engine.get_frames_per_second()])
+	var known := 0
+	for t in world.tunnels:
+		if t.known:
+			known += 1
+	print("t=%d adf=%d reb=%d(conc %d) civ=%d hubs=%d outrage=%.1f footage=%.1f budget=[%d,%d] level=%d anger=%d/%d recr=%d aid=%d tun=%d/%d known=%d fps=%d" % [gm.time, adf, reb, conc, civ, gm.alive_hubs(), gm.outrage, gm.footage, gm.budget[0], gm.budget[1], gm.level, int(world.total_anger()), world.angry_districts(), gm.stats.recruits, gm.stats.aid_delivered, gm.stats.tunnel_trips, world.tunnels.size(), known, Engine.get_frames_per_second()])

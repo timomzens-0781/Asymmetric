@@ -50,8 +50,10 @@ alle Modelle, Texturen, Effekte, Sounds und Musik werden prozedural erzeugt (Kos
 | Zivile Tarnung an/aus (Hadar-Front) | `G` |
 | Sprengfalle legen (Hadar-Front) | `B` |
 | Gebäude räumen | `V` |
+| Tunnelreise der Besatzung (Hadar-Front, Tunnelknoten gewählt) | `N`, dann Ziel-Knoten anklicken |
+| Tunnel-Sammelpunkt (neue Kämpfer reisen unterirdisch) | Knoten gewählt, Rechtsklick auf anderen Knoten |
 | Einsatzregeln streng/frei (Aurelia) | `R` |
-| Unterstützung / Fähigkeiten | `F1`–`F6` oder Buttons rechts |
+| Unterstützung / Fähigkeiten | `F1`–`F10` oder Buttons rechts |
 | Letzter Alarm | `Leertaste` |
 | Kontrollgruppen | `Strg+1…9` speichern, `1…9` abrufen (2× = Kamera hinschicken) |
 | Spielgeschwindigkeit | `+` / `−` |
@@ -96,12 +98,32 @@ Opfer der Gegenseite, sowie präzises Vorgehen, Vorwarnungen und Aufklärung.
   mit den Zivilisten darin. Aurelia kann das Gebäude zuvor per **Evakuierungswarnung** (`F4`) räumen lassen.
 * Zielvorschau für Schläge zeigt die geschätzte Zahl **Zivilisten im Radius**, Kameras und sensible Orte (Klinik, Schule).
 
+### Radikalisierung („Wut“ der Viertel)
+
+Die Karte ist in Viertel (Planquadrate A1–H8) unterteilt. **Jeder zivile Tote, jedes zerstörte Wohnhaus, jede getroffene Klinik
+macht das Viertel wütend.** Wütende Viertel
+
+* schicken der Hadar-Front **Freiwillige** (Zivilisten werden zu getarnten Kämpfern, kostenlos),
+* bringen ihr **Spenden** (Einkommen steigt mit der Gesamtwut),
+* **decken** ihre getarnten Kämpfer (der Verdacht der Armee wächst dort langsamer).
+
+Wut klingt langsam ab – schneller mit Hilfsmaßnahmen. Die Minikarte tönt unruhige Viertel rot, im Bild stehen „WUT n %“-Marken.
+
+### Das Tunnelnetz
+
+Die sieben Tunnelknoten sind **unterirdisch verbunden**. Die Hadar-Front schickt Besatzungen mit `N` unsichtbar von Knoten zu Knoten
+(auch über mehrere Stationen), setzt Tunnel-Sammelpunkte für neue Kämpfer und zieht Verteidiger vor einem Angriff ab
+(die KI tut das von selbst). Aurelia kann das Netz aufspüren: Ein **Aufklärungsflug** über einer Verbindung findet sie – und damit
+**beide** Knoten. Wird ein Knoten zerstört, kappt das alle seine Verbindungen; wer gerade dorthin unterwegs ist, wird verschüttet.
+
 ### Aurelia – Werkzeuge
 
 Infanterie, Aufklärer, Wolf-Schützenpanzer, Titan-Kampfpanzer, Hammer-Haubitze, Argus-Drohne, Viper-Kampfhubschrauber.
 Unterstützung: **Präzisionsschlag** (teuer, chirurgisch), **Artillerie-Salve** (billig, ungenau), **Luftschlag**
 (gewaltig), **Evakuierungswarnung**, **Aufklärungsflug**, **Beweise veröffentlichen**.
-Sieg: alle sechs Tunnelknoten zerstören. Niederlage: Kommandozentrale zerstört oder Empörung 100 %.
+Hilfsmaßnahmen: **Hilfskonvoi** (F7), **Feldlazarett** (F8), **Evakuierungskorridor** (F9), **Presse-Briefing** (F10) –
+sie senken die Wut in den Vierteln bzw. die Empörung (siehe unten).
+Sieg: alle sieben Tunnelknoten zerstören. Niederlage: Kommandozentrale zerstört oder Empörung 100 %.
 
 ### Hadar-Front – Werkzeuge
 
@@ -146,8 +168,13 @@ Startparameter für das Spiel (nach `--`): `autostart=0|1` (Seite), `diff=0|1|2`
 
 ---
 
+## Auswertung
+
+Nach jeder Partie zeigt der Endbildschirm den **Verlauf der Empörung** mit Ereignismarken (Opfer, Uploads, Stufen, Tunnelknoten …),
+eine Aufschlüsselung **„Woher kam die Empörung?“** (Luftschläge, Einstürze, Journalisten, Kliniken …) und die **Wendepunkte** der Partie.
+
 ## Ausblick
 
-Dies ist ein **spielbarer Prototyp** (erste „Mission“ auf einer Karte). Ideen für die nächsten Schritte:
-weitere Karten und Kampagne, Verbündete/Allianztreue als eigene Mechanik, mehr Einheiten (Pioniere, Scharfschützen,
+Dies ist ein **spielbarer Prototyp** (erste „Mission“ auf einer 320×320 m großen Karte mit Altstadt, Marktplatz, Park, Sportfeld, Rathausplatz und Zeltlager). Ideen für die nächsten Schritte:
+weitere Karten und Kampagne (Hafen, Grenzstadt), Verbündete/Allianztreue als eigene Mechanik, mehr Einheiten (Pioniere, Scharfschützen,
 Panzerabwehr-Teams), Checkpoints und Ausgangssperren, Cyber-/Funkstörung, Mehrspieler, Nebel des Krieges mit Sichtfeld-Overlay.

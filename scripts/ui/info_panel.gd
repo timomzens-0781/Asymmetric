@@ -99,7 +99,7 @@ func _draw_hint(font: Font) -> void:
 			["Zerschlage alle Tunnelknoten der Hadar-Front – ohne die Weltöffentlichkeit zu verlieren.", Color(0.9, 0.88, 0.8), 12],
 			["Zivilisten und Journalisten sind keine Ziele. Jeder Fehlschlag steigt ins Netz.", Color(0.9, 0.88, 0.8), 12],
 			["Linksklick: wählen · Rahmen · Rechtsklick: Befehl · T: Angriffsbewegung · C: Person kontrollieren", Color(0.7, 0.68, 0.6), 11],
-			["F1–F6: Unterstützung · Leertaste: letzter Alarm · R: Einsatzregeln · gelbes \"?\" = Verdacht", Color(0.7, 0.68, 0.6), 11],
+			["F1–F10: Unterstützung & Hilfe · Leertaste: letzter Alarm · R: Einsatzregeln · gelbes \"?\" = Verdacht", Color(0.7, 0.68, 0.6), 11],
 		]
 	else:
 		lines = [
@@ -107,7 +107,7 @@ func _draw_hint(font: Font) -> void:
 			["Du gewinnst nicht durch Panzer, sondern durch Bilder: Treibe die Empörung auf 100%.", Color(0.9, 0.88, 0.8), 12],
 			["Halte Medien-Teams am Leben und veröffentliche Videomaterial (Upload).", Color(0.9, 0.88, 0.8), 12],
 			["Linksklick: wählen · Rechtsklick auf Haus: Hinterhalt · G: Tarnung · B: Sprengfalle", Color(0.7, 0.68, 0.6), 11],
-			["F1: Upload · F2: Spendenaufruf · V: Gebäude verlassen · Leertaste: letzter Alarm", Color(0.7, 0.68, 0.6), 11],
+			["F1: Upload · F2: Spendenaufruf · V: Gebäude verlassen · N: Tunnelreise · Leertaste: letzter Alarm", Color(0.7, 0.68, 0.6), 11],
 		]
 	var y := 18.0
 	for l in lines:

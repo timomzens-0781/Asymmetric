@@ -259,6 +259,10 @@ func in_corridor(p: Vector3) -> bool:
 	return false
 
 func _district_tick(dt: float) -> void:
+	# Sind beide Knoten einer Verbindung entdeckt, ist auch der Tunnel bekannt
+	for t in tunnels:
+		if not t.known and t.a.alive and t.b.alive and t.a.revealed and t.b.revealed:
+			t.known = true
 	# Wut klingt langsam ab; Feldlazarette beruhigen ihr Umfeld
 	for i in range(anger.size()):
 		anger[i] = maxf(0.0, anger[i] - 0.05 * dt)
@@ -318,11 +322,22 @@ func _recruit_tick(dt: float) -> void:
 					if d < best:
 						best = d
 						civ = o
-			if civ == null:
-				continue
-			var p := civ.position
-			unregister(civ)
-			civ.queue_free()
+			var p := Vector3.ZERO
+			if civ != null:
+				p = civ.position
+				unregister(civ)
+				civ.queue_free()
+			else:
+				# keine Zivilisten im Freien: ein Bewohner eines Hauses im Viertel schliesst sich an
+				var house: Structure = null
+				for st in structures:
+					if st.alive and st.team == U.TEAM_CIV and st.kind_class == "house" and st.occupants >= 2 and not st.warned and district_of(st.position) == Vector2i(cx, cy):
+						if house == null or rng.randf() < 0.3:
+							house = st
+				if house == null:
+					continue
+				house.occupants -= 1
+				p = house.door_pos(house.position)
 			var kind := "reb_rpg" if rng.randf() < 0.18 else "reb_fighter"
 			var u := spawn_unit(kind, U.TEAM_REB, p)
 			Game.stats.recruits = int(Game.stats.get("recruits", 0)) + 1
@@ -469,8 +484,7 @@ func reveal_tunnel(t: Dictionary) -> int:
 		t.known = true
 	for h in [t.a, t.b]:
 		if h.alive and not h.revealed:
-			h.revealed = true
-			h.ident_mask |= 1
+			(h as Structure).mark_revealed("Tunnelverbindung")
 			newly += 1
 	return newly
 

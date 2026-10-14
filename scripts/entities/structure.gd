@@ -195,11 +195,20 @@ func _tick_production(dt: float) -> void:
 			if team == Game.player_team and not Game.demo_mode:
 				Sfx.play_ui("ready")
 
+## Tunnelknoten als entdeckt markieren (einmalig) und im Ereignisprotokoll festhalten
+func mark_revealed(reason: String) -> void:
+	if revealed:
+		return
+	revealed = true
+	ident_mask |= 1
+	Game.stats.hubs_found = int(Game.stats.get("hubs_found", 0)) + 1
+	Game.log_event("hub_found", "Tunnelknoten entdeckt (%s)" % reason, position)
+
 func _check_hub_exposed() -> void:
 	# Wer aus dem Tunnelknoten schiesst, wird von der Armee in der Naehe bemerkt
 	for o in world.dyn.query(position, 32.0):
 		if o is Unit and o.alive and o.team == U.TEAM_ADF and U.dist2d(o.position, position) < 30.0 and (o as Unit).layer != "air":
-			revealed = true
+			mark_revealed("Feuer aus dem Haus")
 			Game.message("Feuer aus einem Wohnhaus – Tunnelknoten entdeckt!", "good", U.TEAM_ADF)
 			Game.alert.emit(position, "identified")
 			return
@@ -210,8 +219,7 @@ func _tunnel_emerge(u: Unit) -> void:
 		return
 	for o in world.dyn.query(position, 26.0):
 		if o is Unit and o.alive and o.team == U.TEAM_ADF and U.dist2d(o.position, position) < 22.0:
-			revealed = true
-			ident_mask |= 1
+			mark_revealed("Kämpfer verlassen das Haus")
 			Game.message("Tunnelzugang entdeckt!", "good", U.TEAM_ADF)
 			Game.news("Soldaten beobachten Bewaffnete beim Verlassen eines Wohnhauses", "info")
 			return

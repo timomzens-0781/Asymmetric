@@ -177,6 +177,8 @@ func _show_tips(s: int) -> void:
 			"Tipp: Raketenabschüsse werden geortet. Prüfe vor dem Gegenschlag die Zivilisten im Radius!",
 			"Tipp: Gelbes \"?\" über einem Kopf = Verdacht. Mit C kontrollierst du eine Person.",
 			"Tipp: Kamera-Symbole zeigen Medien-Teams. Nicht schießen, wenn sie zusehen.",
+			"Tipp: Rote \"WUT\"-Marken zeigen radikalisierte Viertel. Hilfskonvoi (F7) und Feldlazarett (F8) beruhigen sie.",
+			"Tipp: Ein Aufklärungsflug über einer \"Tunnelsignal?\"-Linie deckt die Verbindung zu weiteren Knoten auf.",
 		]
 	else:
 		tips = [
@@ -184,6 +186,8 @@ func _show_tips(s: int) -> void:
 			"Tipp: Stelle Medien-Teams in die Nähe des Geschehens und veröffentliche mit F1.",
 			"Tipp: Raketenrampen (F = Feuerbefehl) provozieren – am besten aus belebten Vierteln.",
 			"Tipp: G = zivile Tarnung, B = Sprengfalle, H = Feuer halten für den perfekten Hinterhalt.",
+			"Tipp: Knoten wählen, N drücken, Ziel-Knoten anklicken: Besatzungen reisen unsichtbar durch den Tunnel.",
+			"Tipp: Zivile Opfer machen Viertel wütend – dort melden sich Freiwillige und fließen Spenden.",
 		]
 	var i := 0
 	for t in tips:

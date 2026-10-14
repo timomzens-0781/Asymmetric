@@ -307,10 +307,10 @@ func _attribute_gain(gain: float, portions: Dictionary, amount: float) -> void:
 	for c in portions.keys():
 		attrib[c] = float(attrib.get(c, 0.0)) + gain * float(portions[c]) / amount
 
-func log_event(kind: String, text: String, pos: Vector3 = Vector3.ZERO) -> void:
+func log_event(kind: String, text: String, pos: Vector3 = Vector3.ZERO, weight: float = 0.0) -> void:
 	if timeline.size() > 500:
 		timeline.pop_front()
-	timeline.append({"t": time, "kind": kind, "text": text, "pos": pos, "o": outrage})
+	timeline.append({"t": time, "kind": kind, "text": text, "pos": pos, "o": outrage, "w": weight})
 
 func report_civilian_deaths(pos: Vector3, n: float, by_team: int, cause: String, direct: bool = false) -> void:
 	if n <= 0.0:
@@ -399,7 +399,7 @@ func _flush_civ_events() -> void:
 			else:
 				add_outrage(gain * 0.55, false, cause_key)
 				add_footage(gain * 0.35, cause_key)
-			log_event("casualties", "%d Zivilisten getötet (%s)" % [int(round(g.n)), CAUSE_LABELS.get(cause_key, "")], g.pos)
+			log_event("casualties", "%d Zivilisten getötet (%s)" % [int(round(g.n)), CAUSE_LABELS.get(cause_key, "")], g.pos, g.n)
 			alert.emit(g.pos, "casualties")
 			var n := int(round(g.n))
 			var pool: Array = Data.HEADLINES_CIV_DIRECT if g.direct else Data.HEADLINES_CIV_STRIKE
@@ -435,7 +435,7 @@ func upload_footage(auto: bool = false) -> bool:
 	stats.uploads += 1
 	_attribute_gain(gain, portions, raw_amt)
 	add_outrage(gain, false, "", false)
-	log_event("upload", "Videomaterial veröffentlicht (+%.0f%% Empörung)" % gain)
+	log_event("upload", "Videomaterial veröffentlicht (+%.0f%% Empörung)" % gain, Vector3.ZERO, gain)
 	if not auto or true:
 		message_posted.emit("Videomaterial veröffentlicht: Empörung +%.0f%%" % gain, "good" if player_team == U.TEAM_REB else "bad", -1)
 	return true
@@ -566,7 +566,7 @@ func use_ability(team: int, id: String, pos: Vector3 = Vector3.ZERO) -> bool:
 			evidence = 0.0
 			stats.evidence_published += 1
 			add_outrage(-gain, true, "")
-			log_event("evidence", "Beweise veröffentlicht (−%.0f%% Empörung)" % gain)
+			log_event("evidence", "Beweise veröffentlicht (−%.0f%% Empörung)" % gain, Vector3.ZERO, gain)
 			news_posted.emit(Data.HEADLINES_EVIDENCE[_rng.randi() % Data.HEADLINES_EVIDENCE.size()], "good")
 			message_posted.emit("Beweise veröffentlicht: Empörung −%.0f%%" % gain, "good", team)
 		"upload":

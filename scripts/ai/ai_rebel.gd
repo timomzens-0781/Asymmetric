@@ -131,10 +131,11 @@ func _produce() -> void:
 	var hubs := _alive_hubs()
 	if hubs.is_empty():
 		return
-	var k := _diff()
+	# Wer Geld uebrig hat, bildet mehr aus (Spenden durch Wut fliessen in die Produktion)
+	var k := _diff() * (1.0 + clampf((Game.budget[team] - 1200.0) / 2500.0, 0.0, 0.9))
 	var wish := [
 		["reb_fighter", int(16 * k), 3.0], ["reb_rpg", int(6 * k), 2.0], ["reb_tech", int(3 * k), 1.5],
-		["reb_launcher", 2 + int(k), 1.8], ["reb_media", 2, 2.2], ["reb_saboteur", 1 + int(k), 1.2],
+		["reb_launcher", 2 + int(_diff()), 1.8], ["reb_media", 2, 2.2], ["reb_saboteur", 1 + int(_diff()), 1.2],
 	]
 	var best_k := ""
 	var best_sc := -1.0

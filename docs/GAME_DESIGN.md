@@ -51,6 +51,37 @@ Gegengewichte:
 * Zielvorschau der Schläge zeigt **geschätzte Zivilisten**, Kameras und sensible Orte. Die Zahlen sind
   Schätzungen – was die Armee nicht sieht, kann sie nicht zählen.
 
+## 3b. Tunnelnetz
+
+* Die 7 Tunnelknoten bilden einen Graphen: minimaler Spannbaum + 2 Zusatzkanten (Schleifen). Länge = 1,15 × Luftlinie.
+* **Reise**: Besatzungen (Infanterie) reisen mit `N` zwischen Knoten, auch über mehrere Stationen (Dijkstra über aktive Kanten).
+  Dauer = 2,5 s + Länge / 24 m/s. Die Einheit zählt sofort zur Besatzung des Zielknotens (belegt Platz), ist aber „unterwegs“.
+* **Tunnel-Sammelpunkt**: Rechtsklick mit gewähltem Knoten auf einen anderen Knoten – neu ausgebildete Infanterie verschwindet im Haus und reist hin.
+* **Entdeckung** (Aurelia): ein Aufklärungsflug mit Kreisradius 26 m findet jede Verbindung, deren Strecke ≤ 18 m vom Mittelpunkt
+  verläuft, mit 45 % – beide Knoten gelten dann als entdeckt; die Verbindung erscheint rot gestrichelt auf Bild und Minikarte.
+* **Zerstörung** eines Knotens: Verbindungen fallen weg; Reisende zum Knoten sterben.
+* **KI**: Bedrohte Knoten (≥ 1,5 Bedrohung durch Armeeeinheiten ≤ 42 m, oder < 70 % Trefferpunkte) evakuieren ihre Besatzung durch den
+  Tunnel in den sichersten Knoten.
+
+## 3c. Radikalisierung & Hilfsmaßnahmen
+
+```
+Zivile Tote (Aurelia)  ─►  Wut im Viertel (0…100, Raster 40 m)  ─►  Freiwillige (Zivilist → getarnter Kämpfer, ≈ (Wut−10)/90·0,045 /s)
+Zerstörtes Wohnhaus +4          │                                  ─►  Spenden +0,012 × Gesamtwut /s
+Klinik/Schule +12·1,2           └─ Wut ≥ 22: „WUT n %“ im Bild      ─►  Verdacht der Armee ×(1 − Wut/160)
+Zivile Tote durch Rebellen −2/Tote
+Natürlicher Abbau −0,05/s
+```
+
+Aurelias Gegenmittel:
+
+| Fähigkeit | Kosten | Abklingzeit | Wirkung |
+|---|---|---|---|
+| Hilfskonvoi (F7) | 400 | 60 s | 3 Hilfslaster fahren hin, jeder senkt die Wut um 15, Empörung −1. Beschuss durch Rebellen: +2 Beweise, Empörung −2,5 |
+| Feldlazarett (F8) | 600 | 90 s | Gebäude (max. 2): Wut −0,9/s in der Umgebung, Empörung −0,08 %/10 s. Zerstörung durch Rebellen: +3 Beweise, Empörung −3 |
+| Evakuierungskorridor (F9) | 150 | 50 s | Radius 40 m, 45 s: Zivilisten laufen hinaus, kein Nachschub aus Häusern, Verdachtszuwachs ×2,2 für Verbliebene |
+| Presse-Briefing (F10) | 250 | 90 s | Empörung −2,5 %; 60 s lang wirken neue Zuwächse nur zu 70 % |
+
 ## 4. Einheiten (Prototyp)
 
 Siehe `scripts/core/data.gd` (`UNITS`, `STRUCTS`, `ABILITIES`). Schadensmatrix `DMG_MULT` (Handfeuerwaffe / Panzerbrechend /
@@ -79,7 +110,7 @@ Schwierigkeit (0/1/2) skaliert Startbudget, Einkommen und Takt der KI.
 ## 6. Technik
 
 * **Godot 4.3, GL Compatibility**, reiner GDScript, keine externen Assets.
-* Prozedurale Stadt (`city.gd`): Straßenraster, Blöcke → Grundstücke → Gebäude. Fassaden, Boden und Palmen sind
+* Prozedurale Stadt (`city.gd`, 320 × 320 m): Straßenraster, Blöcke → Grundstücke → Gebäude; Sonderzonen: Marktplatz, Park, Sportfeld, Rathausplatz, Zeltlager, Busdepot, Palmenhain, Klinik, Schule. Fassaden, Boden und Palmen sind
   Shader (`facade.gdshader`: Fenster, Balkone, Markisen, Putzschäden, Ruß, Einschusslöcher, beleuchtete Fenster am Abend).
 * `MeshBuilder` baut Fahrzeuge/Infanterie/Gebäude aus Primitiven mit Vertex-Farben (1 Mesh = 1 Draw-Call).
 * Navigation: eigenes 2-m-Raster mit zwei `AStarGrid2D` (Fußgänger / Fahrzeuge mit Sicherheitsabstand) und Pfadglättung.
@@ -87,6 +118,12 @@ Schwierigkeit (0/1/2) skaliert Startbudget, Einkommen und Takt der KI.
 * Tageszeit: Die Sonne wandert im Spielverlauf Richtung Dämmerung, Fenster beginnen zu leuchten.
 * Audio: `tools/gen_audio.py` synthetisiert SFX (Filter-Rauschen, Sweeps) und zwei Musikstücke im Hijaz-Modus
   (Karplus-Strong-Zupfinstrument + Trommel); die Musik blendet dynamisch zwischen ruhig und Kampf.
+
+## 6b. Auswertung
+
+`Game` protokolliert Ereignisse (`log_event`), die Empörung im 2-s-Takt und die **Ursachen** jedes Empörungszuwachses
+(`attrib`; Videomaterial wird anteilig nach Ursache geführt und beim Upload verteilt). `EndReport` zeichnet daraus Verlaufskurve,
+Ursachenbalken und Wendepunkte.
 
 ## 7. Testen
 
@@ -96,8 +133,8 @@ Schwierigkeit (0/1/2) skaliert Startbudget, Einkommen und Takt der KI.
 
 ## 8. Offene Punkte / Ideen
 
-* Kampagnen- und Missionsstruktur; mehrere Karten (Hafen, Grenzstadt, Flüchtlingslager).
+* Kampagnen- und Missionsstruktur; weitere Karten (Hafen, Grenzstadt).
 * „Allianztreue“ als eigene Leiste mit Verbündeten (Waffenlieferungen, Basen).
 * Presse-Briefings, Gegenpropaganda, Cyber-/Funkstörung; Zensur-/Pressefreiheits-Entscheidungen.
-* Fahrzeug-Transport, Pioniere/Entminung, Scharfschützen, Checkpoints, Ausgangssperre.
+* Fahrzeug-Transport, Pioniere/Entminung, Scharfschützen, Checkpoints, Ausgangssperre; Dilemma-Ereignisse (UN-Beobachter, Waffenstillstand).
 * Sichtfeld-/Nebel-Overlay, Replay und Mehrspieler.

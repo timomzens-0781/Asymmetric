@@ -25,6 +25,7 @@ var _end_title: Label
 var _end_text: Label
 var _end_stats: Label
 var _end_rate: Label
+var _end_report: EndReport
 var _sound_btns: Array = []
 
 func _ready() -> void:
@@ -209,12 +210,12 @@ func show_briefing(side: int) -> void:
 	if side == U.TEAM_ADF:
 		_brief_title.text = "OPERATION STÄHLERNER SCHILD"
 		_brief_text.text = "Qadira, Hadar. Seit Tagen schlagen Raketen in Ihrer Basis ein – abgefeuert aus dicht besiedelten Vierteln der Altstadt. Die Hadar-Front kämpft nicht um Gelände, sondern um Bilder: Ihre Kämpfer tragen Zivil, ihre Werfer stehen neben Schulen, und überall laufen Kameras.\n\nSie verfügen über die stärkste Armee der Region. Das Problem ist nicht, wie viel Feuerkraft Sie haben, sondern wie viel Sie sich leisten können."
-		_brief_obj.text = "ZIELE\n▸ Entdecken und zerschlagen Sie alle sechs Tunnelknoten der Hadar-Front (getarnt in Wohnhäusern).\n▸ Halten Sie die Empörung unter 100%. Bei 35% drohen Sanktionen, bei 65% die Flugverbotszone, bei 100% greift eine Koalition ein.\n▸ Zivilisten und Presse sind keine Ziele. Nutzen Sie Aufklärung, Warnungen und Präzision.\n▸ Raketenabschüsse werden geortet – Beweise sammeln Sie für die Pressekonferenz."
+		_brief_obj.text = "ZIELE\n▸ Entdecken und zerschlagen Sie alle sieben Tunnelknoten der Hadar-Front (getarnt in Wohnhäusern). Sie sind unterirdisch verbunden – wer eine Verbindung aufspürt, findet die Knoten.\n▸ Halten Sie die Empörung unter 100%. Bei 35% drohen Sanktionen, bei 65% die Flugverbotszone, bei 100% greift eine Koalition ein.\n▸ Zivilisten und Presse sind keine Ziele. Nutzen Sie Aufklärung, Warnungen und Präzision.\n▸ Raketenabschüsse werden geortet – Beweise sammeln Sie für die Pressekonferenz.\n▸ Jeder zivile Tote macht ein Viertel wütend: Es liefert der Front Freiwillige. Hilfskonvoi, Feldlazarett, Korridor und Presse-Briefing (F7–F10) beruhigen die Lage."
 		_brief_btn.add_theme_stylebox_override("normal", _style(Color(0.12, 0.2, 0.36, 0.98), Color(0.3, 0.55, 0.95), 2))
 	else:
 		_brief_title.text = "OPERATION LEUCHTFEUER"
 		_brief_text.text = "Qadira, Hadar. Gegen Aurelias Armee können Sie keine einzige Schlacht gewinnen – das wissen Sie, und das weiß Ihr Gegner. Aber die Welt schaut zu, und die Verbündeten des Giganten haben schwache Nerven.\n\nIhre Waffen: Tarnung, Hinterhalt, die Rakete als Provokation – und das Smartphone. Wer das Bild beherrscht, beherrscht den Krieg."
-		_brief_obj.text = "ZIELE\n▸ Treiben Sie die Weltöffentlichkeit auf 100% Empörung.\n▸ Medien-Teams filmen Ereignisse in ihrer Nähe. Aufnahmen sammeln sich an – veröffentlichen Sie sie mit F1 (Upload).\n▸ Verstecken Sie Kämpfer in Häusern (Rechtsklick) oder unter Zivilisten (G). Lassen Sie den Feind zuerst kommen.\n▸ Halten Sie mindestens einen Tunnelknoten am Leben: Ohne sie ist der Widerstand gebrochen."
+		_brief_obj.text = "ZIELE\n▸ Treiben Sie die Weltöffentlichkeit auf 100% Empörung.\n▸ Medien-Teams filmen Ereignisse in ihrer Nähe. Aufnahmen sammeln sich an – veröffentlichen Sie sie mit F1 (Upload).\n▸ Verstecken Sie Kämpfer in Häusern (Rechtsklick) oder unter Zivilisten (G). Lassen Sie den Feind zuerst kommen.\n▸ Halten Sie mindestens einen Tunnelknoten am Leben: Ohne sie ist der Widerstand gebrochen.\n▸ Die Knoten sind unterirdisch verbunden (N): Schicken Sie Besatzungen unsichtbar durchs Tunnelnetz. Jeder zivile Tote bringt Freiwillige und Spenden."
 		_brief_btn.add_theme_stylebox_override("normal", _style(Color(0.36, 0.18, 0.05, 0.98), Color(0.95, 0.5, 0.12), 2))
 	brief_root.visible = true
 	_layout()
@@ -245,7 +246,7 @@ func _build_pause() -> void:
 	_sound_btns.append(_pause_sound)
 	var b3 := _button(_pause_panel, "Hauptmenü", Vector2(320, 44), func(): menu_requested.emit())
 	b3.position = Vector2(40, y + 156)
-	var ctrl := _lbl(_pause_panel, "Steuerung\nWASD/Pfeile/Rand: Kamera · Q/E/Mittelmaus: Drehen · Rad: Zoom\nLinksklick/Rahmen: Wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen\nT: Angriffsbewegung · X: Stopp · H: Feuer halten · G: Tarnen · B: Sprengfalle\nF: Feuerbefehl · V: Gebäude räumen · R: Einsatzregeln · F1–F6: Unterstützung\nStrg+1–9: Gruppe speichern · 1–9: abrufen · Leertaste: letzter Alarm", 12, Color(0.75, 0.72, 0.64), 2)
+	var ctrl := _lbl(_pause_panel, "Steuerung\nWASD/Pfeile/Rand: Kamera · Q/E/Mittelmaus: Drehen · Rad: Zoom\nLinksklick/Rahmen: Wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen\nT: Angriffsbewegung · X: Stopp · H: Feuer halten · G: Tarnen · B: Sprengfalle\nF: Feuerbefehl · V: Gebäude räumen · N: Tunnelreise · R: Einsatzregeln · F1–F10: Unterstützung\nStrg+1–9: Gruppe speichern · 1–9: abrufen · Leertaste: letzter Alarm", 12, Color(0.75, 0.72, 0.64), 2)
 	ctrl.position = Vector2(40, y + 214)
 
 func show_pause() -> void:
@@ -271,6 +272,9 @@ func _build_end() -> void:
 	_end_stats = _lbl(_end_panel, "", 15, Color(0.88, 0.85, 0.76), 2)
 	_end_stats.position = Vector2(40, 170)
 	_end_rate = _lbl(_end_panel, "", 18, Color(1.0, 0.85, 0.4), 3)
+	_end_rate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_end_report = EndReport.new()
+	_end_panel.add_child(_end_report)
 	var b1 := _button(_end_panel, "Nochmal spielen", Vector2(250, 48), func(): restart_requested.emit())
 	b1.name = "BtnAgain"
 	var b2 := _button(_end_panel, "Hauptmenü", Vector2(220, 48), func(): menu_requested.emit())
@@ -294,10 +298,12 @@ func show_end(res: Dictionary, player_team: int) -> void:
 	var t := "Einsatzdauer: %s\n" % U.fmt_time(res.time)
 	t += "Höchste Empörung: %d%%\n" % int(round(res.peak))
 	t += "Zivile Opfer gesamt: %d  (davon durch Aurelia: %d · durch die Hadar-Front: %d)\n" % [st.civ_killed, st.civ_by_adf, st.civ_by_reb]
-	t += "Tunnelknoten zerstört: %d von 6\n" % st.hubs_destroyed
+	t += "Tunnelknoten zerstört: %d von %d\n" % [st.hubs_destroyed, World.HUB_COUNT]
 	t += "Verluste – Aurelia: %d · Hadar-Front: %d\n" % [st.adf_lost, st.reb_lost]
-	t += "Raketenabschüsse: %d · Veröffentlichungen: %d · Warnungen: %d · Beweise vorgelegt: %d" % [st.launches, st.uploads, st.shots_warned, st.evidence_published]
+	t += "Raketenabschüsse: %d · Veröffentlichungen: %d · Warnungen: %d · Beweise vorgelegt: %d\n" % [st.launches, st.uploads, st.shots_warned, st.evidence_published]
+	t += "Freiwillige für die Front: %d · Hilfslieferungen: %d · Tunnelreisen: %d" % [st.get("recruits", 0), st.get("aid_delivered", 0), st.get("tunnel_trips", 0)]
 	_end_stats.text = t
+	_end_report.setup(res)
 	var rate := ""
 	if player_team == U.TEAM_ADF:
 		if won:
@@ -339,17 +345,28 @@ func _layout() -> void:
 	_bottom_row.position = Vector2(60 + 2 * cw + 30 - 280, cy + ch + 14)
 	_ver.position = Vector2(60, H - 28)
 	var bw := minf(900.0, W - 80.0)
-	_brief_panel.size = Vector2(bw, 560)
-	_brief_panel.position = Vector2((W - bw) * 0.5, (H - 560) * 0.5)
+	var bh := minf(640.0, H - 20.0)
+	_brief_panel.size = Vector2(bw, bh)
+	_brief_panel.position = Vector2((W - bw) * 0.5, (H - bh) * 0.5)
 	_brief_text.size = Vector2(bw - 60, 120)
-	_brief_obj.position = Vector2(30, 290)
-	_brief_obj.size = Vector2(bw - 60, 200)
-	_brief_btn.position = Vector2(bw - 290, 490)
+	_brief_obj.position = Vector2(30, 270)
+	_brief_obj.size = Vector2(bw - 60, 260)
+	_brief_btn.position = Vector2(bw - 290, bh - 68)
 	_pause_panel.size = Vector2(min(760.0, W - 40.0), 560)
 	_pause_panel.position = Vector2((W - _pause_panel.size.x) * 0.5, (H - 560) * 0.5)
-	_end_panel.size = Vector2(minf(860.0, W - 40.0), 470)
-	_end_panel.position = Vector2((W - _end_panel.size.x) * 0.5, (H - 470) * 0.5)
-	_end_text.size = Vector2(_end_panel.size.x - 80, 80)
-	_end_rate.position = Vector2(40, 330)
-	_end_panel.get_node("BtnAgain").position = Vector2(40, 395)
-	_end_panel.get_node("BtnMenu").position = Vector2(310, 395)
+	var ew := minf(1160.0, W - 30.0)
+	var eh := minf(640.0, H - 30.0)
+	_end_panel.size = Vector2(ew, eh)
+	_end_panel.position = Vector2((W - ew) * 0.5, (H - eh) * 0.5)
+	var lw := minf(470.0, ew * 0.42)
+	_end_text.size = Vector2(lw, 90)
+	_end_text.position = Vector2(40, 82)
+	_end_stats.position = Vector2(40, 82 + 112)
+	_end_stats.size = Vector2(lw, 150)
+	_end_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_end_rate.position = Vector2(40, eh - 150)
+	_end_rate.size = Vector2(lw, 70)
+	_end_report.position = Vector2(lw + 70, 24)
+	_end_report.size = Vector2(ew - lw - 100, eh - 48)
+	_end_panel.get_node("BtnAgain").position = Vector2(40, eh - 68)
+	_end_panel.get_node("BtnMenu").position = Vector2(310, eh - 68)

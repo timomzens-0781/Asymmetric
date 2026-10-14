@@ -149,7 +149,7 @@ func _manage_army() -> void:
 			drones.append(u)
 	if army.size() < [10, 7, 5][Game.difficulty]:
 		return
-	if Game.time < [100.0, 70.0, 45.0][Game.difficulty] and not Game.demo_mode:
+	if Game.time < [130.0, 95.0, 60.0][Game.difficulty] and not Game.demo_mode:
 		return
 	# Verdeckte Gefahr: Anzahl sichtbarer Feinde
 	var cen := _centroid(army)
@@ -172,7 +172,7 @@ func _manage_army() -> void:
 	if hub != null:
 		if _hub_attack_t <= 0.0 or not (U.dist2d(_army_target, hub.position) < 20.0):
 			_army_target = hub.door_pos(cen)
-			_hub_attack_t = [75.0, 55.0, 38.0][Game.difficulty]
+			_hub_attack_t = [95.0, 70.0, 48.0][Game.difficulty]
 			need_new = false
 			_dispatch(army, _army_target, true)
 			_attack_hub(army, arty, hub)
@@ -305,7 +305,7 @@ func _execute_strike(st: Dictionary) -> void:
 
 func _aid_ops() -> void:
 	# Presse-Briefing, wenn die Stimmung kippt
-	if Game.outrage > 26.0 and Game.briefing_t <= 0.0 and Game.ability_ready(team, "briefing") and Game.budget[team] > 700.0:
+	if Game.outrage > 26.0 and Game.briefing_t <= 0.0 and Game.ability_ready(team, "briefing") and Game.budget[team] > 500.0:
 		Game.use_ability(team, "briefing")
 	# Hilfe fuer das wuetendste Viertel
 	var best := Vector2i(-1, -1)
@@ -319,9 +319,9 @@ func _aid_ops() -> void:
 	if best.x < 0:
 		return
 	var cen: Vector3 = world.district_center(best)
-	if best_a >= 44.0 and Game.ability_ready(team, "fieldhosp") and Game.budget[team] > 1500.0:
+	if best_a >= 44.0 and Game.ability_ready(team, "fieldhosp") and Game.budget[team] > 1100.0:
 		Game.use_ability(team, "fieldhosp", cen)
-	elif Game.ability_ready(team, "convoy") and Game.budget[team] > 1000.0 and not _aid_convoy_active():
+	elif Game.ability_ready(team, "convoy") and Game.budget[team] > 700.0 and not _aid_convoy_active():
 		Game.use_ability(team, "convoy", cen)
 
 func _aid_convoy_active() -> bool:
@@ -330,6 +330,24 @@ func _aid_convoy_active() -> bool:
 			return true
 	return false
 
+## Bodenradar entlang eines Tunnelsignals: Ausgehend von einem entdeckten Knoten in Richtung seiner unentdeckten Verbindungen
+func _scan_tunnel() -> bool:
+	var cands: Array = []
+	for t in world.tunnels:
+		if t.known or not world.tunnel_active(t):
+			continue
+		for pair in [[t.a, t.b], [t.b, t.a]]:
+			if pair[0].revealed and not pair[1].revealed:
+				cands.append([pair[0], pair[1]])
+	if cands.is_empty():
+		return false
+	var c: Array = cands[_rng.randi() % cands.size()]
+	var dir: Vector3 = c[1].position - c[0].position
+	dir.y = 0.0
+	dir = dir.normalized()
+	var p: Vector3 = c[0].position + dir * 34.0 + Vector3(_rng.randf_range(-4, 4), 0, _rng.randf_range(-4, 4))
+	return Game.use_ability(team, "scan", p)
+
 func _use_support() -> void:
 	_aid_ops()
 	# Beweise veroeffentlichen
@@ -337,6 +355,9 @@ func _use_support() -> void:
 		Game.use_ability(team, "evidence")
 	# Aufklaerungsflug
 	_scan_cd -= 1.0
+	if _scan_cd <= 0.0 and Game.ability_ready(team, "scan") and Game.budget[team] > 800.0 and _scan_tunnel():
+		_scan_cd = [60.0, 40.0, 24.0][Game.difficulty] * 0.7
+		return
 	if _scan_cd <= 0.0 and Game.ability_ready(team, "scan") and Game.budget[team] > 900.0 and _revealed_hub() == null:
 		var army := _army()
 		var cen := _centroid(army)
@@ -344,6 +365,6 @@ func _use_support() -> void:
 		if U.dist2d(p, _last_scan_pos) > 22.0:
 			Game.use_ability(team, "scan", p)
 			_last_scan_pos = p
-			_scan_cd = [42.0, 26.0, 15.0][Game.difficulty]
+			_scan_cd = [60.0, 40.0, 24.0][Game.difficulty]
 		else:
 			_scan_cd = 6.0

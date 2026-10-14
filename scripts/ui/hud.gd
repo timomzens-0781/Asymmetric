@@ -183,7 +183,7 @@ func _build_bottom() -> void:
 	info.pick_unit.connect(func(e): player.select_list([e]))
 	info.cancel_queue.connect(func(s, idx): s.cancel_unit(idx))
 	card = GridContainer.new()
-	card.columns = 4
+	card.columns = 5
 	card.add_theme_constant_override("h_separation", 4)
 	card.add_theme_constant_override("v_separation", 4)
 	bottom.add_child(card)
@@ -251,8 +251,8 @@ func _layout() -> void:
 	bottom.size = Vector2(W, BOT_H)
 	minimap.position = Vector2(8, 5)
 	info.position = Vector2(minimap.size.x + 16, 5)
-	info.size = Vector2(minf(W - minimap.size.x - 16 - 260, 640), BOT_H - 10)
-	card.position = Vector2(W - 4 * 58 - 8, 6)
+	info.size = Vector2(minf(W - minimap.size.x - 16 - 316, 640), BOT_H - 10)
+	card.position = Vector2(W - 5 * 58 - 8, 6)
 	var two_cols := team == U.TEAM_ADF
 	var n_ab := 5 if team == U.TEAM_ADF else 2
 	abil_panel.size = Vector2(122 if two_cols else 64, n_ab * 57 + (36 if team == U.TEAM_ADF else 0) + 8)
@@ -406,6 +406,18 @@ func _build_card_items() -> Array:
 				"icon": "flag", "label": "Sammelpunkt",
 				"tip_title": "Sammelpunkt", "tip": "Rechtsklick auf die Karte setzt den Sammelpunkt für neue Einheiten.",
 				"action": func(): Game.message("Rechtsklick: Sammelpunkt setzen", "info", team),
+			})
+		if s.hub and s.team == team and team == U.TEAM_REB:
+			items.append({
+				"icon": "tunnel", "label": "Tunnel", "hotkey": "N",
+				"tip_title": "Durch den Tunnel schicken [N]",
+				"tip": "Die Besatzung dieses Knotens reist unterirdisch zu einem anderen Knoten (anklicken). Unsichtbar für die Armee – solange der Tunnel nicht entdeckt ist.\nRechtsklick auf einen anderen Knoten: Tunnel-Sammelpunkt für neue Kämpfer.",
+				"action": func():
+					if s.garrisoned.size() > 0:
+						player.set_mode("tunnel")
+					else:
+						Game.message("Keine Besatzung im Knoten", "warn", team),
+				"toggle": "tunnel",
 			})
 		if s.garrisoned.size() > 0 and s.team == team:
 			items.append({
@@ -656,8 +668,8 @@ func _update_top() -> void:
 		for h in world.hubs:
 			if h.alive and h.revealed:
 				rev += 1
-		ex = "Tunnelknoten: %d (%d entdeckt)  ·  Beweise: %d" % [Game.alive_hubs(), rev, int(Game.evidence)]
-		ex += "  ·  Unruhe: %d  ·  ROE: %s" % [world.angry_districts(), "frei" if world.roe_free[0] else "streng"]
+		ex = "Knoten %d (%d entdeckt) · Beweise %d" % [Game.alive_hubs(), rev, int(Game.evidence)]
+		ex += " · Unruhe %d · ROE %s" % [world.angry_districts(), "frei" if world.roe_free[0] else "streng"]
 	else:
 		ex = "Videomaterial: %d" % int(Game.footage)
 		var m := Game.media_alive()

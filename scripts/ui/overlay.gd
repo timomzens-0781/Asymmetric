@@ -65,12 +65,11 @@ func _draw() -> void:
 	# Zielinfo am Cursor
 	if player.mode == "ability" and not player.target_info.is_empty():
 		_draw_target_info(font)
-	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move" or player.mode == "check":
+	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move" or player.mode == "check" or player.mode == "tunnel":
 		var m := get_viewport().get_mouse_position()
-		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken"}[player.mode]
+		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken", "tunnel": "Tunnel: Ziel-Knoten anklicken"}[player.mode]
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
 
-## Rote Pfeile am Bildschirmrand (bzw. Ringe auf dem Bildschirm) fuer Feuergefechte der eigenen Seite.
 func _draw_anger(font: Font, vp: Rect2) -> void:
 	if rig.dist > 150.0:
 		return
@@ -85,8 +84,10 @@ func _draw_anger(font: Font, vp: Rect2) -> void:
 			var sp := _sp(cen)
 			if not vp.grow(-20.0).has_point(sp):
 				continue
-			var col := Color(1.0, 0.45 if a < 55.0 else 0.25, 0.2, 0.8)
-			draw_string(font, sp + Vector2(-34, 0), "WUT %d%%" % int(a), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
+			var col := Color(1.0, 0.6 if a < 55.0 else 0.4, 0.3, 0.95)
+			var wt := "WUT %d%%" % int(a)
+			draw_string_outline(font, sp + Vector2(-34, 0), wt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))
+			draw_string(font, sp + Vector2(-34, 0), wt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
 			draw_rect(Rect2(sp + Vector2(-34, 4), Vector2(68.0 * a / 100.0, 4.0)), col)
 			draw_rect(Rect2(sp + Vector2(-34, 4), Vector2(68, 4)), Color(0, 0, 0, 0.5), false, 1.0)
 
@@ -105,6 +106,23 @@ func _draw_tunnels(font: Font, vp: Rect2, pt: int) -> void:
 		if not world.tunnel_active(t):
 			continue
 		if pt == U.TEAM_ADF and not t.known:
+			# Hohlraum-Signal: kurze Stummel ab entdeckten Knoten zeigen, wohin ein Tunnel fuehrt
+			for pair in [[t.a, t.b], [t.b, t.a]]:
+				var from_h: Structure = pair[0]
+				var to_h: Structure = pair[1]
+				if not from_h.revealed or to_h.revealed:
+					continue
+				var dir3: Vector3 = to_h.position - from_h.position
+				dir3.y = 0.0
+				dir3 = dir3.normalized()
+				var a3: Vector3 = from_h.position + dir3 * (from_h.radius + 2.0) + Vector3(0, 0.4, 0)
+				var b3: Vector3 = from_h.position + dir3 * 38.0 + Vector3(0, 0.4, 0)
+				if rig.cam.is_position_behind(a3) or rig.cam.is_position_behind(b3):
+					continue
+				var sa := _sp(a3)
+				var sb := _sp(b3)
+				draw_dashed_line(sa, sb, Color(1.0, 0.45, 0.25, 0.55), 1.5, 6.0)
+				draw_string(font, sb + Vector2(-30, -4), "Tunnelsignal?", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.6, 0.4, 0.85))
 			continue
 		if pt == U.TEAM_REB and not show_all:
 			continue
@@ -115,10 +133,11 @@ func _draw_tunnels(font: Font, vp: Rect2, pt: int) -> void:
 		var pa := _sp(a)
 		var pb := _sp(b)
 		var hot: bool = t.a in sel_hubs or t.b in sel_hubs
-		var col := Color(1.0, 0.62, 0.15, 0.85 if hot else 0.4)
+		var col := Color(1.0, 0.66, 0.18, 0.95 if hot else 0.62)
 		if pt == U.TEAM_ADF:
-			col = Color(1.0, 0.25, 0.2, 0.75)
-		draw_dashed_line(pa, pb, col, 2.0 if hot else 1.3, 9.0)
+			col = Color(1.0, 0.25, 0.2, 0.85)
+		draw_line(pa, pb, Color(0, 0, 0, 0.35), 5.0 if hot else 4.0)
+		draw_dashed_line(pa, pb, col, 3.0 if hot else 2.2, 11.0)
 		if pt == U.TEAM_ADF:
 			var mid := (pa + pb) * 0.5
 			draw_string(font, mid + Vector2(-26, -6), "Tunnel", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.6, 0.5, 0.9))
@@ -133,6 +152,7 @@ func _draw_tunnels(font: Font, vp: Rect2, pt: int) -> void:
 					draw_circle(sp, 5.0, Color(1.0, 0.7, 0.2, 0.95))
 					draw_arc(sp, 7.0 + sin(_t * 6.0) * 1.5, 0, TAU, 14, Color(1.0, 0.9, 0.5, 0.7), 1.5)
 
+## Rote Pfeile am Bildschirmrand (bzw. Ringe auf dem Bildschirm) fuer Feuergefechte der eigenen Seite.
 func _draw_fire_alerts(font: Font) -> void:
 	var pulse := 0.5 + 0.5 * sin(_t * 9.0)
 	for c in Game.fire_clusters:

@@ -259,7 +259,7 @@ func _left_press(mb: InputEventMouseButton) -> void:
 				Game.message("%d Kämpfer reisen durch den Tunnel" % sent, "good", team)
 			else:
 				Sfx.play_ui("error")
-				Game.message("Keine Verbindung, kein Platz oder keine Besatzung", "warn", team)
+				Game.message("Tunnelreise nicht möglich: keine Verbindung, kein Platz, keine Besatzung – oder die Kämpfer ruhen noch", "warn", team)
 		set_mode("normal")
 		return
 	if mode == "attack_move":

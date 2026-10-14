@@ -16,7 +16,7 @@ python3 tools/gen_audio.py                                   # Audio neu erzeuge
 ```
 
 Startparameter (nach `--`): `autostart=0|1`, `diff=0|1|2`, `speed=`, `ai_both=1`, `tod=0..0.85`, `cam=x,z,dist[,yaw]`,
-`scenario=<tools/scenarios/NAME.gd>`, `shot=<prefix>`, `shots=t1,t2,..`, `quit_after=<s>`.
+`scenario=<tools/scenarios/NAME.gd>` (z. B. overview, air, report, flow), `shot=<prefix>`, `shots=t1,t2,..`, `quit_after=<s>`.
 Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit deterministisch.
 
 ## Architektur in Kürze
@@ -25,12 +25,18 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
 * `autoload/game.gd` – Regeln: Budget, **Empörung/Videomaterial/Beweise**, Stufen, Fähigkeiten, Sieg/Niederlage.
 * `world/world.gd` – Entitäten, Spatial-Hashes (`dyn` Einheiten, `stat` Gebäude), **Sichtbarkeit** (`seen_mask` / `ident_mask`),
   Verdacht gegen getarnte Rebellen, Zielwahl (`can_auto_target`), `explode`, Gebäude-Einsturz, Zivilisten-Management.
-* `world/city.gd` – prozedurale Stadt (Straßen, Maske für den Bodenshader, Blöcke, Gebäude, Props, Dünen, Skyline).
+* `world/city.gd` – prozedurale Stadt 320 × 320 m (`HALF = 160`; Straßen, Maske für den Bodenshader, Blöcke aus Straßenlücken, Sonderzonen
+  wie Park/Sportfeld/Lager, Props, Dünen, Skyline). Anker für KI/Basis: `base_assembly`, `base_front`, `far_goal`, `sectors`, `is_far_from_base()`.
+  Basis liegt bei `BASE_RECT` (SW-Ecke); Aufstellung = altes Layout + `BASE_OFF`.
 * `entities/` – `Entity` (Basis) → `Unit` (Bewegung/Kampf/Tarnung/Garnison/Kontrolle), `Civilian`, `Structure`
   (Zivilhaus/Tunnelknoten/Basisgebäude, Produktion), `Projectile`, `Mine`.
 * `core/data.gd` – alle Einheiten-/Gebäude-/Fähigkeitswerte, Schadensmatrix, Schlagzeilen.
 * `ai/` – `AiAdf`, `AiRebel` (denken 1×/s, Mikro 0.4–0.6 s). KI nutzt dieselben `cmd_*`-Funktionen wie der Spieler.
 * `control/player.gd` – Eingabe, Auswahl (Ray-Picking), Befehle, Zielmodi; `control/rts_camera.gd`.
+* Tunnelnetz & Radikalisierung leben in `world/world.gd` (`tunnels`, `tunnel_route`, `anger`/`add_anger`/`_district_tick`, Korridore,
+  Feldlazarett); Einheiten-Seite: `Unit.cmd_tunnel`, `tunnel_t`. Hilfsfähigkeiten in `world/support.gd`.
+* Auswertung: `Game.log_event`, `attrib`, `outrage_samples` → `ui/end_report.gd`. Empörung immer mit Ursache erhöhen
+  (`add_outrage(v, silent, "strike"|…)` bzw. `add_footage(…, cause)`).
 * `ui/` – HUD (alles per Code gebaut), `Minimap`, `WorldOverlay` (2D-Marker über der Welt), `Screens` (Menüs).
 * `gfx/` – `MeshBuilder` (Primitive → 1 Mesh mit Vertex-Farben), `Models`, `Props`, `Fx` (GPU-Partikel), Shader.
 

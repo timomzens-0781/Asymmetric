@@ -160,7 +160,7 @@ func _scan(pos: Vector3) -> void:
 	for s in world.structures:
 		if s.alive and s.hub and not s.revealed and U.dist2d(s.position, pos) <= 26.0 + s.radius * 0.5:
 			if world.rng.randf() < 0.5:
-				s.revealed = true
+				s.mark_revealed("Aufklärungsflug")
 				hubs_found += 1
 	# Tunnelverbindungen: Bodenradar erkennt Hohlraeume entlang der Strecke
 	var links_found := 0
