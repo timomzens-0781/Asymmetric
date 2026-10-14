@@ -43,6 +43,8 @@ func _draw() -> void:
 				if vp.has_point(p):
 					draw_string(font, p + Vector2(-5, 5), "✕" if false else "x", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.3, 0.2))
 					draw_arc(p, 8, 0, TAU, 12, Color(1.0, 0.3, 0.2), 2.0)
+	_draw_tunnels(font, vp, pt)
+	_draw_anger(font, vp)
 	_draw_fire_alerts(font)
 	# Auswahlrahmen
 	if player.dragging and player.drag_rect.size.length() > 6.0:
@@ -69,6 +71,68 @@ func _draw() -> void:
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
 
 ## Rote Pfeile am Bildschirmrand (bzw. Ringe auf dem Bildschirm) fuer Feuergefechte der eigenen Seite.
+func _draw_anger(font: Font, vp: Rect2) -> void:
+	if rig.dist > 150.0:
+		return
+	for cy in range(world.dist_n):
+		for cx in range(world.dist_n):
+			var a: float = world.anger[cy * world.dist_n + cx]
+			if a < 22.0:
+				continue
+			var cen: Vector3 = world.district_center(Vector2i(cx, cy)) + Vector3(0, 12.0, 0)
+			if rig.cam.is_position_behind(cen):
+				continue
+			var sp := _sp(cen)
+			if not vp.grow(-20.0).has_point(sp):
+				continue
+			var col := Color(1.0, 0.45 if a < 55.0 else 0.25, 0.2, 0.8)
+			draw_string(font, sp + Vector2(-34, 0), "WUT %d%%" % int(a), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
+			draw_rect(Rect2(sp + Vector2(-34, 4), Vector2(68.0 * a / 100.0, 4.0)), col)
+			draw_rect(Rect2(sp + Vector2(-34, 4), Vector2(68, 4)), Color(0, 0, 0, 0.5), false, 1.0)
+
+func _draw_tunnels(font: Font, vp: Rect2, pt: int) -> void:
+	if world.tunnels.is_empty():
+		return
+	var show_all := false
+	var sel_hubs: Array = []
+	if pt == U.TEAM_REB:
+		for e in player.selected:
+			if is_instance_valid(e) and e is Structure and (e as Structure).hub:
+				sel_hubs.append(e)
+		var he := player.hover_entity
+		show_all = not sel_hubs.is_empty() or player.mode == "tunnel" or (he != null and is_instance_valid(he) and he is Structure and (he as Structure).hub and he.team == pt)
+	for t in world.tunnels:
+		if not world.tunnel_active(t):
+			continue
+		if pt == U.TEAM_ADF and not t.known:
+			continue
+		if pt == U.TEAM_REB and not show_all:
+			continue
+		var a: Vector3 = (t.a as Structure).position + Vector3(0, 0.4, 0)
+		var b: Vector3 = (t.b as Structure).position + Vector3(0, 0.4, 0)
+		if rig.cam.is_position_behind(a) or rig.cam.is_position_behind(b):
+			continue
+		var pa := _sp(a)
+		var pb := _sp(b)
+		var hot: bool = t.a in sel_hubs or t.b in sel_hubs
+		var col := Color(1.0, 0.62, 0.15, 0.85 if hot else 0.4)
+		if pt == U.TEAM_ADF:
+			col = Color(1.0, 0.25, 0.2, 0.75)
+		draw_dashed_line(pa, pb, col, 2.0 if hot else 1.3, 9.0)
+		if pt == U.TEAM_ADF:
+			var mid := (pa + pb) * 0.5
+			draw_string(font, mid + Vector2(-26, -6), "Tunnel", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.6, 0.5, 0.9))
+	if pt == U.TEAM_REB:
+		for u in world.units:
+			if u.alive and u.team == pt and u.tunnel_t > 0.0:
+				var wp: Vector3 = u.tunnel_pos() + Vector3(0, 0.4, 0)
+				if rig.cam.is_position_behind(wp):
+					continue
+				var sp := _sp(wp)
+				if vp.has_point(sp):
+					draw_circle(sp, 5.0, Color(1.0, 0.7, 0.2, 0.95))
+					draw_arc(sp, 7.0 + sin(_t * 6.0) * 1.5, 0, TAU, 14, Color(1.0, 0.9, 0.5, 0.7), 1.5)
+
 func _draw_fire_alerts(font: Font) -> void:
 	var pulse := 0.5 + 0.5 * sin(_t * 9.0)
 	for c in Game.fire_clusters:

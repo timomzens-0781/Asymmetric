@@ -2,26 +2,33 @@ class_name City
 extends Node3D
 ## Prozedurale nahoestliche Stadt "Qadira": Strassen, Bloecke, Gebaeude, Props, Gelaende, Nav-Daten.
 
-const HALF := 100.0
-const MASK_SIZE := 1024
-const SCORCH_SIZE := 512
+const HALF := 160.0
+const MASK_SIZE := 2048
+const SCORCH_SIZE := 1024
 
 # ---- Strassen (Mittellinie, Breite, Ausdehnung)
 const V_ROADS := [
-	{"x": -80.0, "w": 6.0, "z0": -96.0, "z1": 36.0, "type": "street"},
-	{"x": -42.0, "w": 10.0, "z0": -96.0, "z1": 96.0, "type": "main"},
-	{"x": -4.0, "w": 7.0, "z0": -96.0, "z1": 96.0, "type": "street"},
-	{"x": 34.0, "w": 10.0, "z0": -96.0, "z1": 96.0, "type": "main"},
-	{"x": 72.0, "w": 6.0, "z0": -96.0, "z1": 96.0, "type": "street"},
+	{"x": -132.0, "w": 6.0, "z0": -158.0, "z1": 98.0, "type": "street"},
+	{"x": -102.0, "w": 10.0, "z0": -158.0, "z1": 158.0, "type": "main"},
+	{"x": -60.0, "w": 6.0, "z0": -158.0, "z1": 158.0, "type": "street"},
+	{"x": -14.0, "w": 10.0, "z0": -158.0, "z1": 158.0, "type": "main"},
+	{"x": 30.0, "w": 7.0, "z0": -158.0, "z1": 158.0, "type": "street"},
+	{"x": 76.0, "w": 10.0, "z0": -158.0, "z1": 158.0, "type": "main"},
+	{"x": 120.0, "w": 6.0, "z0": -158.0, "z1": 158.0, "type": "street"},
 ]
 const H_ROADS := [
-	{"z": -74.0, "w": 6.0, "x0": -96.0, "x1": 96.0, "type": "street"},
-	{"z": -36.0, "w": 7.0, "x0": -96.0, "x1": 96.0, "type": "street"},
-	{"z": 2.0, "w": 12.0, "x0": -96.0, "x1": 96.0, "type": "main"},
-	{"z": 40.0, "w": 8.0, "x0": -96.0, "x1": 96.0, "type": "street"},
-	{"z": 78.0, "w": 6.0, "x0": -37.0, "x1": 96.0, "type": "street"},
+	{"z": -130.0, "w": 6.0, "x0": -158.0, "x1": 158.0, "type": "street"},
+	{"z": -92.0, "w": 7.0, "x0": -158.0, "x1": 158.0, "type": "street"},
+	{"z": -52.0, "w": 12.0, "x0": -158.0, "x1": 158.0, "type": "main"},
+	{"z": -10.0, "w": 8.0, "x0": -158.0, "x1": 158.0, "type": "street"},
+	{"z": 34.0, "w": 12.0, "x0": -158.0, "x1": 158.0, "type": "main"},
+	{"z": 72.0, "w": 7.0, "x0": -158.0, "x1": 158.0, "type": "street"},
+	{"z": 100.0, "w": 6.0, "x0": -158.0, "x1": 158.0, "type": "street"},
+	{"z": 132.0, "w": 6.0, "x0": -100.0, "x1": 158.0, "type": "street"},
 ]
-const BASE_RECT := Rect2(-94.0, 46.0, 47.0, 48.0)
+const BASE_RECT := Rect2(-154.0, 106.0, 47.0, 48.0)
+## Verschiebung der Basis-Aufstellung gegenueber dem Ur-Layout (Basis lag bei -94/46)
+const BASE_OFF := Vector3(-60.0, 0.0, 60.0)
 
 const PALETTE := [
 	Color(0.85, 0.75, 0.59), Color(0.79, 0.67, 0.5), Color(0.91, 0.85, 0.72), Color(0.73, 0.58, 0.44),
@@ -39,6 +46,15 @@ var blocks: Array = []         # {rect, zone, xi, zi}
 var buildings: Array = []      # Dictionaries (siehe _add_building)
 var civ_spots: Array = []      # Vector3: Spaziergang-Ziele im Freien
 var plaza_rect := Rect2()
+var base_assembly := Vector3.ZERO     # Sammelplatz der Aurelier (Basis)
+var base_front := Vector3.ZERO        # Punkt vor dem Nordtor der Basis
+var far_goal := Vector3.ZERO          # fernes Ende der Karte (Wegsuche der KI)
+var sectors: Array = []               # Vector3: Vormarschsektoren der Aurelier (nach Entfernung sortiert)
+var open_places: Array = []           # {name, rect}: offene Plaetze (Markt, Park, Sportfeld, Lager ...)
+var camp_rect := Rect2()
+var pitch_rect := Rect2()
+var park_rect := Rect2()
+var square_rect := Rect2()
 var hospital_pos := Vector3.ZERO
 var school_pos := Vector3.ZERO
 var wreck_spots: Array = []
@@ -59,6 +75,9 @@ var sun_dir := Vector3(-0.5, -0.8, -0.35).normalized()
 func generate(seed_value: int, nav_ref: Nav) -> void:
 	rng.seed = seed_value
 	nav = nav_ref
+	base_assembly = Vector3(-62.0, 0.0, 70.0) + BASE_OFF
+	base_front = Vector3(-62.0, 0.0, 40.0) + BASE_OFF
+	far_goal = Vector3(HALF - 40.0, 0.0, -HALF + 40.0)
 	_define_roads()
 	_init_mask()
 	_paint_roads()
@@ -68,6 +87,7 @@ func generate(seed_value: int, nav_ref: Nav) -> void:
 		_fill_block(b)
 	_build_base_walls()
 	_street_props()
+	_make_sectors()
 	_distant_skyline()
 	_flush_batches()
 	_finish_mask()
@@ -242,7 +262,7 @@ func _build_terrain() -> void:
 	var noise2 := FastNoiseLite.new()
 	noise2.seed = rng.randi()
 	noise2.frequency = 0.045
-	var ext := 330.0
+	var ext := HALF + 250.0
 	var step := 6.0
 	var n := int(ext * 2.0 / step)
 	var inner_half := HALF + 12.0
@@ -294,9 +314,9 @@ func _distant_skyline() -> void:
 	var mb := MeshBuilder.new()
 	var r2 := RandomNumberGenerator.new()
 	r2.seed = 321
-	for i in range(46):
+	for i in range(70):
 		var ang := r2.randf() * TAU
-		var dist := r2.randf_range(260.0, 340.0)
+		var dist := r2.randf_range(HALF + 170.0, HALF + 260.0)
 		var p := Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
 		var h := r2.randf_range(14.0, 46.0)
 		var w := r2.randf_range(10.0, 26.0)
@@ -311,29 +331,64 @@ func _distant_skyline() -> void:
 
 # ======================================================================= Bloecke
 func _define_blocks() -> void:
-	var xs := [[-96.0, -83.0], [-77.0, -47.0], [-37.0, -7.5], [-0.5, 29.0], [39.0, 67.0], [75.0, 96.0]]
-	var zs := [[-96.0, -77.0], [-71.0, -39.5], [-32.5, -4.0], [8.0, 36.0], [44.0, 75.0], [81.0, 96.0]]
+	# Bloecke ergeben sich aus den Zwischenraeumen der Strassen
+	var xs: Array = _intervals(V_ROADS, "x", -HALF + 4.0, HALF - 4.0)
+	var zs: Array = _intervals(H_ROADS, "z", -HALF + 4.0, HALF - 4.0)
 	for xi in range(xs.size()):
 		for zi in range(zs.size()):
-			if xi <= 1 and zi >= 4:
-				continue   # Basis
 			var r := Rect2(xs[xi][0], zs[zi][0], xs[xi][1] - xs[xi][0], zs[zi][1] - zs[zi][0])
-			var zone := "res"
-			var cx := r.get_center().x
-			var cz := r.get_center().y
-			if xi == 3 and zi == 3:
-				zone = "plaza"
-			elif xi == 2 and zi == 2:
-				zone = "hospital"
-			elif xi == 4 and zi == 2:
-				zone = "school"
-			elif cx > 5.0 and cz < -2.0:
-				zone = "old"
-			elif cx > 60.0 and cz > 8.0 and cz < 40.0:
-				zone = "old_s"
 			if r.size.x < 5.0 or r.size.y < 5.0:
 				continue
+			if r.intersects(BASE_RECT.grow(1.0)) and r.position.x < BASE_RECT.end.x:
+				continue   # Basis
+			var zone := _zone_for(xi, zi, r)
 			blocks.append({"rect": r, "zone": zone, "xi": xi, "zi": zi})
+
+func _intervals(roads_def: Array, key: String, lo: float, hi: float) -> Array:
+	var cs: Array = []
+	for r in roads_def:
+		var c: float = r[key]
+		if not cs.any(func(e): return absf(e[0] - c) < 0.1):
+			cs.append([c, r.w * 0.5])
+	cs.sort_custom(func(a, b): return a[0] < b[0])
+	var out: Array = []
+	var cur := lo
+	for e in cs:
+		var edge: float = e[0] - e[1]
+		if edge - cur > 4.0:
+			out.append([cur, edge])
+		cur = e[0] + e[1]
+	if hi - cur > 4.0:
+		out.append([cur, hi])
+	return out
+
+func _zone_for(xi: int, zi: int, r: Rect2) -> String:
+	var cx := r.get_center().x
+	var cz := r.get_center().y
+	# Spezialzonen (Spalte/Zeile im Strassenraster)
+	if xi == 4 and zi == 4:
+		return "plaza"        # grosser Marktplatz in der Stadtmitte
+	if xi == 3 and zi == 3:
+		return "hospital"
+	if xi == 5 and zi == 3:
+		return "school"
+	if xi == 3 and zi == 4:
+		return "park"         # Stadtpark
+	if xi == 6 and zi == 2:
+		return "pitch"        # Sportplatz
+	if xi == 5 and zi == 5:
+		return "square"       # Rathausplatz mit Denkmal
+	if xi == 7 and zi == 5:
+		return "camp"         # Zeltlager Vertriebener
+	if xi == 3 and zi == 7:
+		return "depot"        # Busdepot / Containerplatz
+	if xi == 1 and zi == 4:
+		return "grove"        # Palmenhain
+	if cx > -22.0 and cz < -2.0:
+		return "old"
+	if cx > 50.0 and cz > 0.0 and cz < 80.0:
+		return "old_s"
+	return "res"
 
 func _fill_block(b: Dictionary) -> void:
 	var r: Rect2 = b.rect
@@ -346,6 +401,18 @@ func _fill_block(b: Dictionary) -> void:
 			_build_hospital(inner)
 		"school":
 			_build_school(inner)
+		"park":
+			_build_park(inner)
+		"pitch":
+			_build_pitch(inner)
+		"square":
+			_build_square(inner)
+		"camp":
+			_build_camp(inner)
+		"depot":
+			_build_depot(inner)
+		"grove":
+			_build_grove(inner)
 		_:
 			var lots: Array = []
 			var max_lot := 16.0
@@ -611,8 +678,9 @@ func _build_plaza(r: Rect2) -> void:
 	nav.block_rect(c.x, c.y, 4.0, 4.0, true)
 	# Marktstaende in Reihen
 	var stall_names := ["stall_red", "stall_green", "stall_orange", "stall_blue"]
+	var n_stalls := int((r.size.x - 8.0) / 5.2) + 1
 	for row in range(2):
-		for i in range(5):
+		for i in range(n_stalls):
 			var sx := r.position.x + 4.5 + i * 5.2
 			var sz_ := (r.position.y + 8.5) if row == 0 else (r.end.y - 4.0)
 			if absf(sx - c.x) < 6.0 and absf(sz_ - c.y) < 6.0:
@@ -625,6 +693,9 @@ func _build_plaza(r: Rect2) -> void:
 			var sx2 := r.position.x + 4.0 + i * (r.size.x - 8.0)
 			_add_prop(stall_names[rng.randi() % 4], Vector3(sx2, 0, sz2), PI * 0.5 if i == 0 else -PI * 0.5, Color.WHITE)
 			nav.block_rect(sx2, sz2, 1.3, 1.8, true)
+	_add_prop("kiosk", Vector3(c.x + 11.0, 0, c.y - 1.0), -PI * 0.5, Color.WHITE)
+	nav.block_rect(c.x + 11.0, c.y - 1.0, 1.4, 1.4, true)
+	open_places.append({"name": "Marktplatz", "rect": r})
 	# Randbebauung: Ladenzeile oben (zur Hauptstrasse) und unten
 	var top_row := Rect2(r.position.x, r.position.y, r.size.x, 5.0)
 	var bot_row := Rect2(r.position.x, r.end.y - 5.0, r.size.x, 5.0)
@@ -636,8 +707,8 @@ func _build_plaza(r: Rect2) -> void:
 		var p := Vector3(rng.randf_range(r.position.x + 2, r.end.x - 2), 0, rng.randf_range(r.position.y + 6, r.end.y - 2))
 		if Vector2(p.x - c.x, p.z - c.y).length() > 7.0:
 			_add_palm(p)
-	for i in range(14):
-		civ_spots.append(Vector3(c.x + rng.randf_range(-12, 12), 0, c.y + rng.randf_range(-11, 11)))
+	for i in range(22):
+		civ_spots.append(Vector3(c.x + rng.randf_range(-15, 15), 0, c.y + rng.randf_range(-13, 13)))
 
 func _shop_row(r: Rect2, top: bool) -> void:
 	var x := r.position.x
@@ -694,6 +765,186 @@ func _build_school(r: Rect2) -> void:
 	civ_spots.append(Vector3(r.position.x + 18.0, 0, r.position.y + 18.0))
 	civ_spots.append(Vector3(r.position.x + 20.0, 0, r.position.y + 15.0))
 
+# ----------------------------------------------------------------------- Offene Plaetze
+func _place_trees(r: Rect2, n: int, keep_out: Array = []) -> void:
+	for i in range(n):
+		var p := Vector3(rng.randf_range(r.position.x + 1.5, r.end.x - 1.5), 0, rng.randf_range(r.position.y + 1.5, r.end.y - 1.5))
+		var skip := false
+		for k in keep_out:
+			if (k as Rect2).has_point(Vector2(p.x, p.z)):
+				skip = true
+				break
+		if skip:
+			continue
+		_add_prop("tree", p, rng.randf() * TAU, Color.WHITE, rng.randf_range(0.8, 1.25))
+		nav.block_rect(p.x, p.z, 0.45, 0.45, true)
+
+func _build_park(r: Rect2) -> void:
+	park_rect = r
+	_paint(r, Color(0, 0, 0, 0))   # Erde/Gras (Duenen-Boden)
+	open_places.append({"name": "Stadtpark", "rect": r})
+	var c := r.get_center()
+	# Wege: Kreuz und Ring, gepflastert
+	_paint(Rect2(r.position.x, c.y - 1.2, r.size.x, 2.4), Color(0, 1, 0, 0))
+	_paint(Rect2(c.x - 1.2, r.position.y, 2.4, r.size.y), Color(0, 1, 0, 0))
+	_paint_circle(c, 7.5, Color(0, 1, 0, 0))
+	_paint_circle(c, 6.0, Color(0, 0, 0, 0))
+	# Teich in der Mitte (Mesh), Rand aus Stein
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.2
+	mb.cyl(Vector3(0, 0.12, 0), 5.6, 5.6, 0.24, Color(0.72, 0.66, 0.54), 22)
+	mb.cyl(Vector3(0, 0.2, 0), 5.0, 5.0, 0.1, Color(0.18, 0.38, 0.46), 22)
+	mb.cyl(Vector3(0, 0.45, 0), 0.5, 0.35, 0.8, Color(0.75, 0.7, 0.58), 8)
+	var pm := MeshInstance3D.new()
+	pm.mesh = mb.build(Gfx.vcol_mat(0.35, 0.2))
+	pm.position = Vector3(c.x, 0, c.y)
+	add_child(pm)
+	nav.block_rect(c.x, c.y, 5.2, 5.2, true)
+	# Baeume, Palmen, Baenke, Muelleimer, Pavillon
+	var keep := [Rect2(r.position.x, c.y - 1.8, r.size.x, 3.6), Rect2(c.x - 1.8, r.position.y, 3.6, r.size.y), Rect2(c.x - 8.0, c.y - 8.0, 16.0, 16.0)]
+	_place_trees(r, 26, keep)
+	for i in range(10):
+		var p := Vector3(rng.randf_range(r.position.x + 2.0, r.end.x - 2.0), 0, rng.randf_range(r.position.y + 2.0, r.end.y - 2.0))
+		if Vector2(p.x - c.x, p.z - c.y).length() > 9.0:
+			_add_palm(p)
+	for sgn in [-1.0, 1.0]:
+		for k in range(3):
+			var bx: float = c.x + sgn * (10.0 + k * 5.0)
+			_add_prop("bench", Vector3(bx, 0, c.y - 2.4), 0.0, Color.WHITE)
+			_add_prop("bench", Vector3(bx, 0, c.y + 2.4), PI, Color.WHITE)
+			var bz: float = c.y + sgn * (10.0 + k * 4.0)
+			_add_prop("bench", Vector3(c.x - 2.4, 0, bz), PI * 0.5, Color.WHITE)
+			_add_prop("bench", Vector3(c.x + 2.4, 0, bz), -PI * 0.5, Color.WHITE)
+	for i in range(6):
+		_add_prop("bin", Vector3(c.x + rng.randf_range(-16, 16), 0, c.y + (2.0 if i % 2 == 0 else -2.0)), 0.0, Color.WHITE)
+	_add_prop("kiosk", Vector3(r.end.x - 4.0, 0, r.end.y - 4.0), PI, Color.WHITE)
+	nav.block_rect(r.end.x - 4.0, r.end.y - 4.0, 1.4, 1.4, true)
+	for i in range(18):
+		civ_spots.append(Vector3(c.x + rng.randf_range(-16, 16), 0, c.y + rng.randf_range(-14, 14)))
+
+func _build_pitch(r: Rect2) -> void:
+	pitch_rect = r
+	_paint(r, Color(0, 0, 0, 0))
+	open_places.append({"name": "Sportfeld", "rect": r})
+	var c := r.get_center()
+	# Spielfeld: festgestampfte Erde mit Linien
+	var field := Rect2(c.x - 14.5, c.y - 10.0, 29.0, 20.0)
+	_paint(field, Color(0, 1, 0, 0))
+	var line := Color(1, 0, 1, 0)
+	_paint(Rect2(field.position.x, field.position.y, field.size.x, 0.18), line)
+	_paint(Rect2(field.position.x, field.end.y - 0.18, field.size.x, 0.18), line)
+	_paint(Rect2(field.position.x, field.position.y, 0.18, field.size.y), line)
+	_paint(Rect2(field.end.x - 0.18, field.position.y, 0.18, field.size.y), line)
+	_paint(Rect2(c.x - 0.09, field.position.y, 0.18, field.size.y), line)
+	_paint_circle(c, 2.6, line)
+	_paint_circle(c, 2.42, Color(0, 1, 0, 0))
+	_paint(Rect2(field.position.x, c.y - 4.0, 4.0, 8.0), line)
+	_paint(Rect2(field.position.x + 0.18, c.y - 3.82, 3.64, 7.64), Color(0, 1, 0, 0))
+	_paint(Rect2(field.end.x - 4.0, c.y - 4.0, 4.0, 8.0), line)
+	_paint(Rect2(field.end.x - 3.82, c.y - 3.82, 3.64, 7.64), Color(0, 1, 0, 0))
+	_add_prop("goal", Vector3(field.position.x, 0, c.y), PI * 0.5, Color.WHITE)
+	_add_prop("goal", Vector3(field.end.x, 0, c.y), -PI * 0.5, Color.WHITE)
+	# Tribuene an der Suedseite, Flutlichtmasten
+	_add_prop("tribune", Vector3(c.x, 0, r.end.y - 3.5), PI, Color.WHITE)
+	nav.block_rect(c.x, r.end.y - 5.0, 7.5, 3.0, true)
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		_add_prop("lamp", Vector3(c.x + corner.x * 17.0, 0, c.y + corner.y * 11.5), 0.0, Color.WHITE, 1.4)
+	for i in range(6):
+		_add_palm(Vector3(r.position.x + 2.0 + i * (r.size.x - 4.0) / 5.0, 0, r.position.y + 1.8))
+	for i in range(14):
+		civ_spots.append(Vector3(c.x + rng.randf_range(-16, 16), 0, c.y + rng.randf_range(-10, 12)))
+
+func _build_square(r: Rect2) -> void:
+	square_rect = r
+	_paint(r, Color(0, 1, 0, 0))
+	open_places.append({"name": "Rathausplatz", "rect": r})
+	var c := r.get_center()
+	# Muster im Pflaster: Kreis um das Denkmal
+	_paint_circle(c, 9.0, Color(0, 0, 0, 0))
+	_paint_circle(c, 8.4, Color(0, 1, 0, 0))
+	_add_prop("obelisk", Vector3(c.x, 0, c.y), 0.0, Color.WHITE)
+	nav.block_rect(c.x, c.y, 2.6, 2.6, true)
+	# Fahnenmasten
+	for i in range(4):
+		_add_prop("flagpole", Vector3(r.position.x + 6.0 + i * (r.size.x - 12.0) / 3.0, 0, r.position.y + 5.0), rng.randf() * 0.5, Color.WHITE)
+	# Rathaus an der Nordseite
+	var hall := Rect2(r.position.x + 5.0, r.position.y, r.size.x - 10.0, 9.0)
+	var b := _add_building(hall, 3.0 * 3.5 + 1.0, "house", "res", false, Color(0.9, 0.84, 0.7))
+	b.occ = 14
+	# Baeume und Baenke am Rand, Brunnen-Becken
+	for i in range(7):
+		_add_prop("bench", Vector3(c.x - 14.0 + i * 4.6, 0, r.end.y - 2.5), PI, Color.WHITE)
+	for i in range(8):
+		var tp := Vector3(r.position.x + 2.0 + i * (r.size.x - 4.0) / 7.0, 0, r.end.y - 1.2)
+		_add_prop("tree", tp, rng.randf() * TAU, Color.WHITE, 0.9)
+	for i in range(4):
+		_add_prop("planter", Vector3(c.x - 6.0 + i * 4.0, 0, c.y + 11.0), 0.0, Color.WHITE)
+	_add_prop("car", Vector3(r.position.x + 4.0, 0, r.end.y - 7.0), 0.1, Color(0.9, 0.9, 0.9))
+	_add_prop("car", Vector3(r.end.x - 4.0, 0, r.end.y - 7.0), -0.2, Color(0.2, 0.2, 0.22))
+	for i in range(16):
+		civ_spots.append(Vector3(c.x + rng.randf_range(-14, 14), 0, c.y + rng.randf_range(-6, 12)))
+
+func _build_camp(r: Rect2) -> void:
+	camp_rect = r
+	_paint(r, Color(0, 0, 0, 0))
+	open_places.append({"name": "Zeltlager", "rect": r})
+	var c := r.get_center()
+	# Zeltreihen mit Gassen; ein Hilfs-Zelt gross
+	var row := 0
+	var z := r.position.y + 4.0
+	while z < r.end.y - 3.0:
+		var x := r.position.x + 3.5
+		while x < r.end.x - 3.0:
+			var big := (row % 3 == 1 and int((x - r.position.x) / 6.0) % 4 == 1)
+			var yaw := (PI * 0.5 if rng.randf() < 0.2 else 0.0)
+			_add_prop("tent_big" if big else "tent", Vector3(x + rng.randf_range(-0.4, 0.4), 0, z + rng.randf_range(-0.4, 0.4)), yaw, Color.WHITE)
+			nav.block_rect(x, z, 1.4 if yaw == 0.0 else 1.9, 1.9 if yaw == 0.0 else 1.4, true)
+			x += 6.2
+		z += 6.2
+		row += 1
+	# Wassertank, Feuerstellen (Barrels), Kisten
+	_add_prop("water_tank_ground", Vector3(r.end.x - 3.0, 0, c.y), 0.0, Color.WHITE)
+	nav.block_rect(r.end.x - 3.0, c.y, 1.6, 1.6, true)
+	for i in range(5):
+		_add_prop("crate", Vector3(r.position.x + 2.0, 0, r.position.y + 2.0 + i * 5.0), rng.randf() * TAU, Color.WHITE)
+	for i in range(30):
+		civ_spots.append(Vector3(rng.randf_range(r.position.x + 2.0, r.end.x - 2.0), 0, rng.randf_range(r.position.y + 2.0, r.end.y - 2.0)))
+
+func _build_depot(r: Rect2) -> void:
+	_paint(r, Color(0, 1, 0, 0))
+	open_places.append({"name": "Busdepot", "rect": r})
+	var c := r.get_center()
+	# Busse in einer Reihe, Container stapelweise, Baracke
+	for i in range(5):
+		var bx := r.position.x + 5.0 + i * 6.5
+		_add_prop("bus", Vector3(bx, 0, r.position.y + 7.0), 0.0, Color(rng.randf_range(0.8, 1.0), rng.randf_range(0.8, 1.0), rng.randf_range(0.7, 1.0)))
+		nav.block_rect(bx, r.position.y + 7.0, 1.4, 5.4, true)
+	for i in range(4):
+		var cx := r.position.x + 4.0 + i * 3.1
+		_add_prop("container", Vector3(cx, 0, r.end.y - 6.0), 0.0, Color(rng.randf_range(0.6, 1.1), rng.randf_range(0.8, 1.1), rng.randf_range(0.8, 1.1)))
+		nav.block_rect(cx, r.end.y - 6.0, 1.3, 3.2, true)
+	var shed := Rect2(r.end.x - 10.0, c.y - 3.0, 8.0, 6.0)
+	_add_building(shed, 4.2, "house", "res", false, Color(0.75, 0.72, 0.66))
+	for i in range(5):
+		_add_prop("barrel", Vector3(c.x + rng.randf_range(-6, 6), 0, c.y + rng.randf_range(-3, 3)), rng.randf() * TAU, Color.WHITE)
+	wreck_spots.append(Vector3(c.x, 0, c.y + 2.0))
+	_add_prop("car_wreck", Vector3(c.x, 0, c.y + 2.0), 0.4, Color.WHITE)
+	for i in range(6):
+		civ_spots.append(Vector3(c.x + rng.randf_range(-10, 10), 0, c.y + rng.randf_range(-4, 4)))
+
+func _build_grove(r: Rect2) -> void:
+	_paint(r, Color(0, 0, 0, 0))
+	open_places.append({"name": "Palmenhain", "rect": r})
+	var x := r.position.x + 3.0
+	while x < r.end.x - 2.0:
+		var z := r.position.y + 3.0
+		while z < r.end.y - 2.0:
+			_add_palm(Vector3(x + rng.randf_range(-0.6, 0.6), 0, z + rng.randf_range(-0.6, 0.6)))
+			z += 5.0
+		x += 5.0
+	for i in range(8):
+		civ_spots.append(Vector3(rng.randf_range(r.position.x + 2.0, r.end.x - 2.0), 0, rng.randf_range(r.position.y + 2.0, r.end.y - 2.0)))
+
 # ======================================================================= Basis (Mauern)
 func _build_base_walls() -> void:
 	var r := BASE_RECT
@@ -728,6 +979,31 @@ func _build_base_walls() -> void:
 	_add_prop("sandbags", Vector3(r.end.x + 2.0, 0, gate_e.x - 1.5), 0.0, Color.WHITE)
 	_add_prop("sandbags", Vector3(r.end.x + 2.0, 0, gate_e.y + 1.5), 0.0, Color.WHITE)
 
+func _make_sectors() -> void:
+	# Vormarschsektoren: Marktplatz/Rathausplatz und Altstadtbloecke als Rundgang (naechster Nachbar)
+	var cands: Array = []
+	for b in blocks:
+		if b.zone in ["old", "old_s", "plaza", "square"]:
+			cands.append((b.rect as Rect2).get_center())
+	var cur := Vector2(base_assembly.x, base_assembly.z)
+	var rest := cands.duplicate()
+	while not rest.is_empty():
+		var bi := 0
+		var bd := 1e9
+		for i in range(rest.size()):
+			var d: float = (rest[i] as Vector2).distance_to(cur)
+			if d < bd:
+				bd = d
+				bi = i
+		cur = rest[bi]
+		sectors.append(Vector3(cur.x, 0.0, cur.y))
+		rest.remove_at(bi)
+	far_goal = Vector3(plaza_rect.get_center().x, 0.0, plaza_rect.get_center().y)
+
+## Liegt p im Feindgebiet (weit genug von der Basis)?
+func is_far_from_base(p: Vector3, min_d: float = 75.0) -> bool:
+	return Vector2(p.x - base_assembly.x, p.z - base_assembly.z).length() > min_d
+
 # ======================================================================= Strassen-Props
 func _street_props() -> void:
 	# Palmen und Laternen
@@ -759,7 +1035,7 @@ func _street_props() -> void:
 			t += spacing
 			k += 1
 	# parkende Autos am Strassenrand
-	for i in range(55):
+	for i in range(150):
 		var rd: Dictionary = roads[rng.randi() % roads.size()]
 		var c: Dictionary = rd.c
 		var vert: bool = rd.vert
@@ -777,7 +1053,7 @@ func _street_props() -> void:
 	# Strommasten + Leitungen
 	_power_lines()
 	# Strassenmoebel: Baenke, Muelleimer, Schilder, Pflanzkuebel
-	for i in range(70):
+	for i in range(190):
 		var rd2: Dictionary = roads[rng.randi() % roads.size()]
 		var c2: Dictionary = rd2.c
 		var vert2: bool = rd2.vert
@@ -792,21 +1068,21 @@ func _street_props() -> void:
 		var nm2: String = ["bench", "bin", "signpost", "planter"][pick]
 		_add_prop(nm2, q, yaw2, Color.WHITE)
 	# Betonbarrieren / Checkpoints
-	var cps := [Vector3(-42, 0, -20), Vector3(34, 0, 20), Vector3(-4, 0, 22), Vector3(34, 0, -55)]
+	var cps := [Vector3(-102, 0, 60), Vector3(-14, 0, 84), Vector3(-14, 0, -30), Vector3(76, 0, 18), Vector3(76, 0, -70), Vector3(-60, 0, 20)]
 	for p in cps:
 		for i in range(3):
 			_add_prop("barrier", p + Vector3(-3.0 + i * 3.1, 0, 0), PI * 0.5, Color.WHITE)
 	# Aussenbereich: Buesche
-	for i in range(60):
+	for i in range(110):
 		var ang := rng.randf() * TAU
-		var d := rng.randf_range(100.0, 150.0)
+		var d := rng.randf_range(HALF, HALF + 55.0)
 		var p := Vector3(cos(ang) * d, 0, sin(ang) * d)
-		if absf(p.x) < 106.0 and absf(p.z) < 106.0:
-			p = p.normalized() * 118.0
+		if absf(p.x) < HALF + 6.0 and absf(p.z) < HALF + 6.0:
+			p = p.normalized() * (HALF + 18.0)
 		_add_prop("dune_bush", p, rng.randf() * TAU, Color.WHITE)
-	for i in range(30):
+	for i in range(40):
 		var ang := rng.randf() * TAU
-		var d := rng.randf_range(104.0, 140.0)
+		var d := rng.randf_range(HALF + 4.0, HALF + 40.0)
 		_add_palm(Vector3(cos(ang) * d, 0, sin(ang) * d))
 
 func _near_intersection(p: Vector3, pad: float) -> bool:
@@ -826,8 +1102,9 @@ func _blocked_for_prop(p: Vector3) -> bool:
 func _power_lines() -> void:
 	var lines := PackedVector3Array()
 	var segs := [
-		{"vert": false, "c": 36.0, "a": -92.0, "b": 92.0, "off": 4.8},
-		{"vert": true, "c": -4.0, "a": -92.0, "b": 30.0, "off": 4.6},
+		{"vert": false, "c": 34.0, "a": -150.0, "b": 150.0, "off": 4.8},
+		{"vert": true, "c": 30.0, "a": -150.0, "b": 90.0, "off": 4.6},
+		{"vert": false, "c": -92.0, "a": -150.0, "b": 150.0, "off": 4.6},
 	]
 	for s in segs:
 		var poles: Array = []

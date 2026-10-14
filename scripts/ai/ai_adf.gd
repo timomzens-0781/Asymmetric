@@ -23,12 +23,17 @@ var _next_strike_t := 0.0
 
 func _ready() -> void:
 	_rng.randomize()
-	_sectors = [
-		Vector3(14, 0, 22), Vector3(2, 0, -18), Vector3(34, 0, -30), Vector3(52, 0, -52),
-		Vector3(70, 0, -20), Vector3(14, 0, -56), Vector3(60, 0, 24), Vector3(-20, 0, -50),
-		Vector3(80, 0, -80), Vector3(34, 0, -78), Vector3(-30, 0, -20),
-	]
+
+func _ensure_sectors() -> void:
+	if not _sectors.is_empty() or world == null:
+		return
+	_sectors = world.city.sectors.duplicate()
+	if _sectors.is_empty():
+		_sectors = [world.city.far_goal]
 	_army_target = _sectors[0]
+
+func _base() -> Vector3:
+	return world.city.base_assembly
 
 func _aggr() -> float:
 	return [0.7, 1.0, 1.35][Game.difficulty]
@@ -47,6 +52,7 @@ func _process(dt: float) -> void:
 		_think()
 
 func _think() -> void:
+	_ensure_sectors()
 	# Einsatzregeln: je hoeher die Empoerung, desto vorsichtiger
 	world.roe_free[0] = Game.outrage < 42.0
 	_produce()
@@ -124,7 +130,7 @@ func _army() -> Array:
 
 func _centroid(a: Array) -> Vector3:
 	if a.is_empty():
-		return Vector3(-62, 0, 70)
+		return _base()
 	var c := Vector3.ZERO
 	for u in a:
 		c += u.position
@@ -185,7 +191,7 @@ func _manage_army() -> void:
 	# Artillerie in Stellung bringen
 	for a in arty:
 		if a.order_type == "idle" and U.dist2d(a.position, cen) > 45.0:
-			a.cmd_move(cen + (Vector3(-62, 0, 70) - cen).normalized() * 25.0)
+			a.cmd_move(cen + (_base() - cen).normalized() * 25.0)
 
 func _dispatch(army: Array, target: Vector3, hub_mode: bool) -> void:
 	# Vorsicht: Panzer zuerst langsam, Infanterie folgt
@@ -209,7 +215,7 @@ func _revealed_hub() -> Structure:
 	var bd := 1e9
 	for h in world.hubs:
 		if h.alive and h.revealed:
-			var d: float = U.dist2d(h.position, Vector3(-60, 0, 70))
+			var d: float = U.dist2d(h.position, _base())
 			if d < bd:
 				bd = d
 				best = h
@@ -227,6 +233,8 @@ func _attack_hub(army: Array, arty: Array, hub: Structure) -> void:
 		_warned[hub.id] = Game.time
 		if Game.ability_ready(team, "warning"):
 			Game.use_ability(team, "warning", hub.position)
+		if hub.occupants > 5 and Game.ability_ready(team, "corridor") and Game.budget[team] > 700.0:
+			Game.use_ability(team, "corridor", hub.position)
 	# Luft-/Praezisionsschlag nach Warnzeit
 	if _warned.has(hub.id) and Game.time - _warned[hub.id] > 9.0 or hub.occupants <= 3:
 		if Game.time < _next_strike_t:
@@ -295,7 +303,35 @@ func _execute_strike(st: Dictionary) -> void:
 				if a.alive and a.team == team and a.kind == "adf_arty" and U.dist2d(a.position, pos) < 98.0 and U.dist2d(a.position, pos) > 27.0 and outrage < 62.0:
 					a.cmd_attack_ground(pos)
 
+func _aid_ops() -> void:
+	# Presse-Briefing, wenn die Stimmung kippt
+	if Game.outrage > 26.0 and Game.briefing_t <= 0.0 and Game.ability_ready(team, "briefing") and Game.budget[team] > 700.0:
+		Game.use_ability(team, "briefing")
+	# Hilfe fuer das wuetendste Viertel
+	var best := Vector2i(-1, -1)
+	var best_a := 30.0
+	for cy in range(world.dist_n):
+		for cx in range(world.dist_n):
+			var a: float = world.anger[cy * world.dist_n + cx]
+			if a > best_a:
+				best_a = a
+				best = Vector2i(cx, cy)
+	if best.x < 0:
+		return
+	var cen: Vector3 = world.district_center(best)
+	if best_a >= 44.0 and Game.ability_ready(team, "fieldhosp") and Game.budget[team] > 1500.0:
+		Game.use_ability(team, "fieldhosp", cen)
+	elif Game.ability_ready(team, "convoy") and Game.budget[team] > 1000.0 and not _aid_convoy_active():
+		Game.use_ability(team, "convoy", cen)
+
+func _aid_convoy_active() -> bool:
+	for u in world.units:
+		if u.alive and u.kind == "adf_aid":
+			return true
+	return false
+
 func _use_support() -> void:
+	_aid_ops()
 	# Beweise veroeffentlichen
 	if Game.evidence >= 3.0 and Game.ability_ready(team, "evidence") and Game.outrage > 8.0:
 		Game.use_ability(team, "evidence")

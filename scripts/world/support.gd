@@ -12,9 +12,12 @@ func execute(id: String, team: int, pos: Vector3) -> void:
 		"salvo": _salvo(pos)
 		"warning": _warning(pos)
 		"scan": _scan(pos)
+		"convoy": _convoy(pos)
+		"fieldhosp": _fieldhosp(pos)
+		"corridor": _corridor(pos)
 
 func _base_pos() -> Vector3:
-	return Vector3(-72.0, 0.0, 70.0)
+	return world.city.base_assembly if world != null and world.city != null else Vector3.ZERO
 
 func _timer(delay: float, f: Callable) -> void:
 	var tm := Timer.new()
@@ -29,14 +32,42 @@ func _timer(delay: float, f: Callable) -> void:
 func _jet_model() -> Node3D:
 	var root := Node3D.new()
 	var mb := MeshBuilder.new()
-	var grey := Color(0.5, 0.52, 0.55)
-	mb.cyl(Vector3(0, 0, 0), 0.9, 0.35, 11.0, grey, 8, 2)
-	mb.sphere(Vector3(0, 0.45, 2.8), 0.6, Color(0.1, 0.16, 0.2), Vector3(0.8, 0.7, 1.7), 4, 8)
-	mb.extrude([Vector2(0, 3.5), Vector2(-7.0, -3.8), Vector2(7.0, -3.8)], -0.1, 0.18, grey * 0.95)
-	mb.box(Vector3(0, 1.0, -4.4), Vector3(0.12, 1.8, 1.8), grey)
-	mb.box(Vector3(-1.0, 0.8, -4.2), Vector3(0.12, 1.5, 1.6), grey)
-	mb.box(Vector3(1.0, 0.8, -4.2), Vector3(0.12, 1.5, 1.6), grey)
-	mb.box(Vector3(0, 0.0, -5.6), Vector3(0.9, 0.9, 0.3), Color(0.15, 0.1, 0.08))
+	mb.jitter = 0.02
+	var grey := Color(0.5, 0.53, 0.56)
+	var dark := Color(0.12, 0.12, 0.14)
+	var glass := Color(0.12, 0.2, 0.26)
+	var tc := U.team_color(U.TEAM_ADF)
+	# Rumpf: kantige Segmente, Nase mit Radom
+	mb.loft(Vector3(0, 0, -4.0), Vector2(1.7, 1.0), Vector3(0, 0.0, 1.6), Vector2(1.2, 0.85), grey)
+	mb.loft(Vector3(0, 0.0, 1.6), Vector2(1.2, 0.85), Vector3(0, -0.12, 4.6), Vector2(0.4, 0.4), grey * 0.95)
+	mb.loft(Vector3(0, -0.12, 4.6), Vector2(0.4, 0.4), Vector3(0, -0.14, 5.6), Vector2(0.06, 0.06), Color(0.3, 0.3, 0.32))
+	# Cockpit (Blasenhaube)
+	mb.prism_x([Vector2(3.4, 0.4), Vector2(2.5, 1.0), Vector2(0.6, 1.0), Vector2(-0.3, 0.42)], -0.38, 0.38, glass, Color(0.25, 0.3, 0.34))
+	# Lufteinlaesse und Triebwerke
+	for sx in [-1.0, 1.0]:
+		mb.loft(Vector3(sx * 1.05, -0.25, -3.8), Vector2(0.8, 0.85), Vector3(sx * 0.95, -0.3, 1.0), Vector2(0.75, 0.75), grey * 0.92)
+		mb.box(Vector3(sx * 0.95, -0.3, 1.02), Vector3(0.65, 0.65, 0.08), dark)
+		mb.cyl(Vector3(sx * 0.8, 0.0, -4.5), 0.42, 0.34, 1.0, Color(0.25, 0.22, 0.2), 10, 2)
+		mb.cyl(Vector3(sx * 0.8, 0.0, -5.0), 0.34, 0.3, 0.1, Color(0.95, 0.5, 0.15), 10, 2)
+	# Tragflaechen: gepfeilt, mit Hinterkantenklappen
+	for sx in [-1.0, 1.0]:
+		mb.extrude([Vector2(sx * 0.9, 1.9), Vector2(sx * 7.2, -2.6), Vector2(sx * 7.2, -3.6), Vector2(sx * 0.9, -3.6)], -0.1, 0.12, grey * 0.97, grey * 1.04)
+		mb.box_t(Vector3(sx * 4.2, 0.0, -3.4), Vector3(3.4, 0.05, 0.5), grey * 0.85, Vector3(0, sx * -20.0, 0))
+		mb.box(Vector3(sx * 7.1, 0.0, -3.1), Vector3(0.3, 0.06, 0.7), tc)
+		# Lufttankpylone: Bomben + Lenkwaffen
+		for k in range(2):
+			var x: float = sx * (2.6 + k * 2.2)
+			mb.box(Vector3(x, -0.4, -1.0 - k * 0.5), Vector3(0.1, 0.4, 1.0), dark)
+			mb.cyl(Vector3(x, -0.85, -1.0 - k * 0.5), 0.26, 0.26, 2.2, Color(0.36, 0.38, 0.34), 8, 2)
+			mb.cyl(Vector3(x, -0.85, 0.2 - k * 0.5), 0.26, 0.04, 0.5, Color(0.36, 0.38, 0.34), 8, 2)
+			mb.box(Vector3(x, -0.85, -2.0 - k * 0.5), Vector3(0.7, 0.04, 0.35), dark)
+		mb.cyl(Vector3(sx * 7.5, 0.0, -2.9), 0.1, 0.1, 2.6, Color(0.7, 0.7, 0.72), 6, 2)     # Wingtip-Rakete
+		mb.cyl(Vector3(sx * 7.5, 0.0, -1.5), 0.1, 0.0, 0.3, Color(0.7, 0.7, 0.72), 6, 2)
+	# Doppeltes Seitenleitwerk (nach aussen geneigt) und Hoehenruder
+	for sx in [-1.0, 1.0]:
+		mb.prism_x([Vector2(-2.6, 0.5), Vector2(-4.4, 2.6), Vector2(-5.4, 2.6), Vector2(-5.0, 0.5)], sx * 1.0 - 0.06, sx * 1.0 + 0.06, grey * 1.02)
+		mb.box(Vector3(sx * 1.0, 2.62, -5.0), Vector3(0.14, 0.12, 0.7), tc)
+		mb.extrude([Vector2(sx * 0.7, -3.4), Vector2(sx * 3.4, -5.0), Vector2(sx * 3.4, -5.9), Vector2(sx * 0.7, -5.4)], -0.05, 0.07, grey * 0.95)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mb.build(Gfx.vcol_mat(0.45, 0.4))
 	root.add_child(mi)
@@ -131,9 +162,61 @@ func _scan(pos: Vector3) -> void:
 			if world.rng.randf() < 0.5:
 				s.revealed = true
 				hubs_found += 1
-	if hubs_found > 0:
+	# Tunnelverbindungen: Bodenradar erkennt Hohlraeume entlang der Strecke
+	var links_found := 0
+	for t in world.tunnels:
+		if t.known or not world.tunnel_active(t):
+			continue
+		var a2 := Vector2(t.a.position.x, t.a.position.z)
+		var b2 := Vector2(t.b.position.x, t.b.position.z)
+		var c2 := Vector2(pos.x, pos.z)
+		var closest := Geometry2D.get_closest_point_to_segment(c2, a2, b2)
+		if closest.distance_to(c2) <= 18.0 and world.rng.randf() < 0.45:
+			var newly := world.reveal_tunnel(t)
+			links_found += 1
+			hubs_found += newly
+	if links_found > 0:
+		Game.message("Aufklärung: Tunnelverbindung entdeckt – sie führt zu %d weiteren Knoten!" % hubs_found, "good", U.TEAM_ADF)
+		Game.news("Bodenradar findet Hohlräume unter dem Viertel – ein Tunnelnetz?", "good")
+	elif hubs_found > 0:
 		Game.message("Aufklärung: %d Tunnelsignatur(en) entdeckt!" % hubs_found, "good", U.TEAM_ADF)
 	elif found > 0:
 		Game.message("Aufklärung: %d verdächtige Personen markiert" % found, "good", U.TEAM_ADF)
 	else:
 		Game.message("Aufklärung: nichts Auffälliges", "info", U.TEAM_ADF)
+
+# ----------------------------------------------------------------------------- Hilfsmassnahmen
+func _convoy(pos: Vector3) -> void:
+	var origin: Vector3 = _base_pos() + Vector3(2.0, 0, -6.0)
+	var dest := world.nav.nearest_free_pos(pos, "veh", 10)
+	var n := 0
+	for i in range(3):
+		var sp := world.nav.nearest_free_pos(origin + Vector3(-2.0 + i * 4.0, 0, 0), "veh", 8)
+		var t := world.spawn_unit("adf_aid", U.TEAM_ADF, sp)
+		if t == null:
+			continue
+		t.set_meta("aid_pos", dest + Vector3((i - 1) * 6.0, 0, (i % 2) * 5.0))
+		t.set_meta("aid_state", "go")
+		t.cmd_move(world.nav.nearest_free_pos(t.get_meta("aid_pos"), "veh", 10))
+		n += 1
+	world.fx.ring_ping(pos, 14.0, Color(0.4, 0.8, 1.0, 0.85), 2.4)
+	Game.message("Hilfskonvoi unterwegs (%d Lkw)" % n, "good", U.TEAM_ADF)
+	Game.log_event("aid", "Hilfskonvoi entsandt", pos)
+
+func _fieldhosp(pos: Vector3) -> void:
+	if world.place_field_hospital(pos):
+		Game.message("Feldlazarett errichtet", "good", U.TEAM_ADF)
+		Game.news("Aurelia errichtet Feldlazarett im Zentrum von Qadira", "good")
+		Game.log_event("aid", "Feldlazarett errichtet", pos)
+	else:
+		Game.message("Kein freier Platz für ein Feldlazarett", "warn", U.TEAM_ADF)
+		Game.refund(U.TEAM_ADF, Data.ABILITIES["fieldhosp"].cost)
+		Game.cooldowns[0]["fieldhosp"] = 0.0
+
+func _corridor(pos: Vector3) -> void:
+	world.corridors.append({"pos": pos, "r": 40.0, "t": 45.0, "ping": 0.0})
+	world.fx.ring_ping(pos, 40.0, Color(0.4, 0.9, 1.0, 0.8), 3.0)
+	Sfx.play_ui("scan")
+	Game.message("Evakuierungskorridor geöffnet – wer bleibt, fällt auf", "good", U.TEAM_ADF)
+	Game.news("Aurelia öffnet Evakuierungskorridor – Zivilisten verlassen das Viertel", "info")
+	Game.log_event("corridor", "Evakuierungskorridor geöffnet", pos)

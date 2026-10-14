@@ -218,6 +218,65 @@ func wedge(center: Vector3, size: Vector3, col: Color) -> void:
 	face([Vector3(x1, y0, z0), Vector3(x1, y0, z1), Vector3(x1, y1, z0)], Vector3.RIGHT, col * 0.95)
 	face([Vector3(x0, y0, z0), Vector3(x0, y0, z1), Vector3(x0, y1, z0)], Vector3.LEFT, col * 0.95)
 
+## Rechteck-Stumpf (Loft) entlang Z: Querschnitt (Breite x, Hoehe y) an c0 und c1 (Mittelpunkte inkl. Hoehe).
+## Ideal fuer kantige Rumpfformen: Nasen, Heckausleger, Lufteinlaesse.
+func loft(c0: Vector3, s0: Vector2, c1: Vector3, s1: Vector2, col: Color, top_col: Color = Color(0, 0, 0, 0)) -> void:
+	col = _jit(col)
+	var tc := top_col if top_col.a > 0.0 else col
+	var a0 := Vector3(c0.x - s0.x * 0.5, c0.y - s0.y * 0.5, c0.z)   # unten links (hinten)
+	var a1 := Vector3(c0.x + s0.x * 0.5, c0.y - s0.y * 0.5, c0.z)
+	var a2 := Vector3(c0.x + s0.x * 0.5, c0.y + s0.y * 0.5, c0.z)
+	var a3 := Vector3(c0.x - s0.x * 0.5, c0.y + s0.y * 0.5, c0.z)
+	var b0 := Vector3(c1.x - s1.x * 0.5, c1.y - s1.y * 0.5, c1.z)
+	var b1 := Vector3(c1.x + s1.x * 0.5, c1.y - s1.y * 0.5, c1.z)
+	var b2 := Vector3(c1.x + s1.x * 0.5, c1.y + s1.y * 0.5, c1.z)
+	var b3 := Vector3(c1.x - s1.x * 0.5, c1.y + s1.y * 0.5, c1.z)
+	var fwd := 1.0 if c1.z >= c0.z else -1.0
+	_face_auto([a3, a2, b2, b3], Vector3.UP, tc)
+	_face_auto([a0, a1, b1, b0], Vector3.DOWN, col * 0.65)
+	_face_auto([a1, a2, b2, b1], Vector3.RIGHT, col * 0.95)
+	_face_auto([a0, a3, b3, b0], Vector3.LEFT, col * 0.95)
+	_face_auto([a0, a1, a2, a3], Vector3(0, 0, -fwd), col * 0.9)
+	_face_auto([b0, b1, b2, b3], Vector3(0, 0, fwd), col)
+
+## Flaeche mit aus der Geometrie berechneter Normalen (rough_out gibt nur die ungefaehre Aussenrichtung an).
+func _face_auto(verts: Array, rough_out: Vector3, col: Color) -> void:
+	var n: Vector3 = (verts[1] - verts[0]).cross(verts[2] - verts[0])
+	if n.length() < 1e-9:
+		n = (verts[2] - verts[0]).cross(verts[3] - verts[0]) if verts.size() > 3 else rough_out
+	n = n.normalized()
+	if n.dot(rough_out) < 0.0:
+		n = -n
+	face(verts, n, col)
+
+## Prisma: konvexes Polygon in der Seitenansicht (x = z-Position, y = Hoehe), entlang X von x0 bis x1 extrudiert.
+func prism_x(poly: Array, x0: float, x1: float, col: Color, top_col: Color = Color(0, 0, 0, 0)) -> void:
+	col = _jit(col)
+	var n := poly.size()
+	var cen := Vector2.ZERO
+	for p in poly:
+		cen += p
+	cen /= n
+	var left: Array = []
+	var right: Array = []
+	for p in poly:
+		left.append(Vector3(x0, p.y, p.x))
+		right.append(Vector3(x1, p.y, p.x))
+	face(left, Vector3.LEFT, col * 0.95)
+	face(right, Vector3.RIGHT, col * 0.95)
+	for i in range(n):
+		var a: Vector2 = poly[i]
+		var b: Vector2 = poly[(i + 1) % n]
+		var mid := (a + b) * 0.5
+		var edge := b - a
+		var nrm := Vector2(edge.y, -edge.x)
+		if nrm.dot(mid - cen) < 0.0:
+			nrm = -nrm
+		nrm = nrm.normalized()
+		var outward := Vector3(0, nrm.y, nrm.x)
+		var cc := top_col if (top_col.a > 0.0 and nrm.y > 0.6) else col
+		face([Vector3(x0, a.y, a.x), Vector3(x1, a.y, a.x), Vector3(x1, b.y, b.x), Vector3(x0, b.y, b.x)], outward, cc * (0.9 + 0.1 * nrm.y))
+
 ## Quader zwischen zwei Punkten (Streben, Rohre, Kabel). thick = Querschnitt.
 func beam(a: Vector3, b: Vector3, thick: float, col: Color) -> void:
 	var d := b - a

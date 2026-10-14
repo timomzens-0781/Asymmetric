@@ -10,7 +10,7 @@ var world: World
 var rig: RtsCamera
 var team := 0
 var selected: Array = []
-var mode := "normal"          # normal | attack_move | ability | fire_ground
+var mode := "normal"          # normal | attack_move | ability | fire_ground | check | tunnel
 var ability_id := ""
 var groups: Dictionary = {}
 var dragging := false
@@ -96,7 +96,7 @@ func _update_target_ring() -> void:
 		target_info = risk_info(hover_ground, r)
 		var danger: float = target_info.civs
 		_ring_mat.albedo_color = Color(1.0, 0.25, 0.2, 0.9) if danger > 6 else (Color(1.0, 0.75, 0.2, 0.9) if danger > 0 else Color(0.4, 1.0, 0.5, 0.9))
-	elif mode == "ability" and ability_id == "scan":
+	elif mode == "ability" and ability_id in ["scan", "convoy", "fieldhosp", "corridor"]:
 		_ring_mat.albedo_color = Color(0.3, 0.9, 1.0, 0.9)
 	elif mode == "ability":
 		_ring_mat.albedo_color = Color(1.0, 0.9, 0.3, 0.9)
@@ -243,6 +243,25 @@ func _left_press(mb: InputEventMouseButton) -> void:
 				Sfx.play_ui("click")
 		set_mode("normal")
 		return
+	if mode == "tunnel":
+		var dest := hover_entity
+		if dest is Structure and (dest as Structure).hub and dest.team == team:
+			var sent := 0
+			for h in _own_structures():
+				if not (h as Structure).hub or h == dest:
+					continue
+				for u in (h as Structure).garrisoned.duplicate():
+					if u is Unit and (u as Unit).cmd_tunnel(dest as Structure):
+						sent += 1
+			if sent > 0:
+				world.fx.ring_ping(dest.position, dest.radius + 2.0, Color(1.0, 0.7, 0.25, 0.9), 0.9)
+				Sfx.play_ui("click")
+				Game.message("%d Kämpfer reisen durch den Tunnel" % sent, "good", team)
+			else:
+				Sfx.play_ui("error")
+				Game.message("Keine Verbindung, kein Platz oder keine Besatzung", "warn", team)
+		set_mode("normal")
+		return
 	if mode == "attack_move":
 		var us := _own_units()
 		_formation_order(us, hover_ground, true)
@@ -352,9 +371,20 @@ func _right_click(mb: InputEventMouseButton) -> void:
 	var units := _own_units()
 	var e := hover_entity
 	if units.is_empty():
-		# Gebaeude: Sammelpunkt setzen
+		# Gebaeude: Sammelpunkt setzen (Rechtsklick auf anderen Tunnelknoten: Tunnel-Sammelpunkt)
+		if e is Structure and (e as Structure).hub and e.team == team and team == U.TEAM_REB:
+			var n_set := 0
+			for s in _own_structures():
+				if s.hub and s != e and not world.tunnel_route(s, e as Structure).is_empty():
+					s.rally_hub = e as Structure
+					n_set += 1
+			if n_set > 0:
+				world.fx.ring_ping(e.position, e.radius + 2.0, Color(1.0, 0.7, 0.25, 0.9), 0.9)
+				Game.message("Tunnel-Sammelpunkt gesetzt: neue Kämpfer reisen unterirdisch dorthin", "info", team)
+				return
 		for s in _own_structures():
 			if not s.produces.is_empty():
+				s.rally_hub = null
 				s.rally = hover_ground
 				world.fx.ring_ping(hover_ground, 2.2, Color(0.4, 1.0, 0.5, 0.9), 0.8)
 		return
@@ -496,7 +526,7 @@ func _key(k: InputEventKey) -> void:
 		KEY_SPACE:
 			if last_alert_pos != Vector3.ZERO:
 				rig.focus_on(last_alert_pos)
-		KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6:
+		KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10:
 			var ids := ability_order()
 			var idx: int = code - KEY_F1
 			if idx < ids.size():
@@ -507,7 +537,7 @@ func _key(k: InputEventKey) -> void:
 
 func ability_order() -> Array:
 	if team == U.TEAM_ADF:
-		return ["precision", "salvo", "airstrike", "warning", "scan", "evidence"]
+		return ["precision", "salvo", "airstrike", "warning", "scan", "evidence", "convoy", "fieldhosp", "corridor", "briefing"]
 	return ["upload", "donate"]
 
 func _centroid(arr: Array) -> Vector3:

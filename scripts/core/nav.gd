@@ -2,9 +2,9 @@ class_name Nav
 extends RefCounted
 ## Navigationsraster (2m-Zellen) mit zwei A*-Gittern: Fussgaenger und Fahrzeuge (Gebaeude + 1 Zelle Abstand).
 
-const HALF := 100.0
+const HALF := 160.0
 const CELL := 2.0
-const N := 100
+const N := 160
 
 var foot := AStarGrid2D.new()
 var veh := AStarGrid2D.new()

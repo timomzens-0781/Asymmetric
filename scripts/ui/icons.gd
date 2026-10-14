@@ -144,6 +144,38 @@ static func draw(ci: CanvasItem, kind: String, r: Rect2, c: Color) -> void:
 			ci.draw_line(P.call(0.16, 0.62), P.call(0.16, 0.88), c, lw * 1.4)
 			ci.draw_line(P.call(0.84, 0.62), P.call(0.84, 0.88), c, lw * 1.4)
 			ci.draw_line(P.call(0.5, 0.64), P.call(0.5, 0.96), c, lw)
+		"aid":
+			ci.draw_rect(Rect2(P.call(0.08, 0.34), Vector2(0.54, 0.38) * s), c)
+			ci.draw_rect(Rect2(P.call(0.64, 0.46), Vector2(0.26, 0.26) * s), c)
+			ci.draw_circle(P.call(0.26, 0.78), s * 0.09, c)
+			ci.draw_circle(P.call(0.74, 0.78), s * 0.09, c)
+			ci.draw_line(P.call(0.35, 0.4), P.call(0.35, 0.66), Color(0, 0, 0, 0.7), lw * 1.2)
+			ci.draw_line(P.call(0.22, 0.53), P.call(0.48, 0.53), Color(0, 0, 0, 0.7), lw * 1.2)
+		"medic":
+			ci.draw_rect(Rect2(P.call(0.38, 0.14), Vector2(0.24, 0.72) * s), c)
+			ci.draw_rect(Rect2(P.call(0.14, 0.38), Vector2(0.72, 0.24) * s), c)
+		"corridor":
+			ci.draw_line(P.call(0.5, 0.5), P.call(0.12, 0.12), c, lw * 1.2)
+			ci.draw_line(P.call(0.5, 0.5), P.call(0.88, 0.12), c, lw * 1.2)
+			ci.draw_line(P.call(0.5, 0.5), P.call(0.12, 0.88), c, lw * 1.2)
+			ci.draw_line(P.call(0.5, 0.5), P.call(0.88, 0.88), c, lw * 1.2)
+			ci.draw_circle(P.call(0.5, 0.5), s * 0.12, c)
+			ci.draw_arc(P.call(0.5, 0.5), s * 0.36, 0, TAU, 18, c, lw * 0.8)
+		"mic":
+			ci.draw_rect(Rect2(P.call(0.38, 0.1), Vector2(0.24, 0.42) * s), c)
+			ci.draw_arc(P.call(0.5, 0.45), s * 0.26, 0.2, PI - 0.2, 12, c, lw * 1.1)
+			ci.draw_line(P.call(0.5, 0.72), P.call(0.5, 0.88), c, lw * 1.2)
+			ci.draw_line(P.call(0.34, 0.88), P.call(0.66, 0.88), c, lw * 1.2)
+		"tunnel":
+			ci.draw_arc(P.call(0.22, 0.6), s * 0.18, PI, TAU, 10, c, lw * 1.3)
+			ci.draw_arc(P.call(0.78, 0.6), s * 0.18, PI, TAU, 10, c, lw * 1.3)
+			ci.draw_line(P.call(0.04, 0.6), P.call(0.04, 0.86), c, lw * 1.2)
+			ci.draw_line(P.call(0.4, 0.6), P.call(0.6, 0.6), c, lw * 0.8)
+			ci.draw_line(P.call(0.4, 0.74), P.call(0.6, 0.74), c, lw * 0.8)
+			ci.draw_line(P.call(0.96, 0.6), P.call(0.96, 0.86), c, lw * 1.2)
+			ci.draw_line(P.call(0.3, 0.3), P.call(0.7, 0.3), c, lw)
+			ci.draw_line(P.call(0.6, 0.2), P.call(0.7, 0.3), c, lw)
+			ci.draw_line(P.call(0.6, 0.4), P.call(0.7, 0.3), c, lw)
 		"base":
 			ci.draw_rect(Rect2(P.call(0.14, 0.34), Vector2(0.72, 0.5) * s), c)
 			ci.draw_line(P.call(0.5, 0.34), P.call(0.5, 0.1), c, lw)

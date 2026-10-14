@@ -38,6 +38,10 @@ var ground_target := Vector3.ZERO
 var has_ground_target := false
 var hold := false
 var garrison: Structure = null
+var tunnel_t := 0.0                 # > 0: gerade im Tunnelnetz unterwegs (Ziel = garrison)
+var tunnel_dur := 0.0
+var tunnel_pts := PackedVector3Array()   # Hubs der Route (fuer die Anzeige)
+var tunnel_len := 0.0
 var moving := false
 var air_h := 0.0
 var _acq_t := 0.0
@@ -283,11 +287,54 @@ func enter_garrison(s: Structure) -> void:
 func ungarrison() -> void:
 	if garrison == null:
 		return
+	tunnel_t = 0.0
 	var s := garrison
 	garrison = null
 	s.garrisoned.erase(self)
 	position = world.nav.nearest_free_pos(s.door_pos(position), grid, 8)
 	visible = true
+
+## Tunnelreise: aus dem Tunnelknoten, in dem die Einheit sitzt, in einen anderen Knoten des Netzes.
+func cmd_tunnel(dest: Structure) -> bool:
+	if team != U.TEAM_REB or layer != "foot" or garrison == null or tunnel_t > 0.0:
+		return false
+	if not garrison.hub or dest == null or not dest.alive or not dest.hub or dest == garrison:
+		return false
+	if dest.garrisoned.size() >= dest.garrison_cap:
+		return false
+	var route := world.tunnel_route(garrison, dest)
+	if route.size() < 2:
+		return false
+	var src := garrison
+	src.garrisoned.erase(self)
+	garrison = dest
+	dest.garrisoned.append(self)
+	tunnel_pts = PackedVector3Array()
+	for h in route:
+		tunnel_pts.append((h as Structure).position)
+	tunnel_len = world.route_length(route)
+	tunnel_dur = 2.5 + tunnel_len / World.TUNNEL_SPEED
+	tunnel_t = tunnel_dur
+	position = Vector3(dest.position.x, 0.0, dest.position.z)
+	if selected:
+		world.deselect_entity(self)
+	Game.stats.tunnel_trips = int(Game.stats.get("tunnel_trips", 0)) + 1
+	world.fx.dust_cloud(src.door_pos(src.position), 1.2)
+	return true
+
+## Aktuelle Position im Tunnel (fuer die Anzeige der Wanderer)
+func tunnel_pos() -> Vector3:
+	if tunnel_pts.size() < 2 or tunnel_dur <= 0.0:
+		return position
+	var k := 1.0 - tunnel_t / tunnel_dur
+	var want := k * tunnel_len
+	var acc := 0.0
+	for i in range(tunnel_pts.size() - 1):
+		var seg := U.dist2d(tunnel_pts[i], tunnel_pts[i + 1])
+		if acc + seg >= want:
+			return tunnel_pts[i].lerp(tunnel_pts[i + 1], clampf((want - acc) / maxf(seg, 0.01), 0.0, 1.0))
+		acc += seg
+	return tunnel_pts[tunnel_pts.size() - 1]
 
 # ============================================================================= Sim
 func _process(dt: float) -> void:
@@ -301,6 +348,14 @@ func _process(dt: float) -> void:
 		exposed_t -= dt
 	_anim_t += dt
 	if garrison != null:
+		if tunnel_t > 0.0:
+			tunnel_t -= dt
+			if tunnel_t <= 0.0:
+				tunnel_t = 0.0
+				tunnel_pts = PackedVector3Array()
+				if team == Game.player_team and not Game.demo_mode:
+					Sfx.play_ui("ready", -10.0)
+			return
 		_sim_garrison(dt)
 		return
 	if is_civ:
@@ -459,8 +514,37 @@ func _sim_check(dt: float) -> void:
 		order_target = null
 		world.resolve_check(self, t)
 
-func _sim_nonweapon(_dt: float) -> void:
-	pass
+func _sim_nonweapon(dt: float) -> void:
+	if kind == "adf_aid":
+		_sim_aid(dt)
+
+func _sim_aid(dt: float) -> void:
+	if not has_meta("aid_pos"):
+		return
+	var st: String = get_meta("aid_state", "go")
+	var ap: Vector3 = get_meta("aid_pos")
+	if st == "go":
+		if U.dist2d(position, ap) < 16.0 or (order_type == "idle" and path_i >= path.size()):
+			set_meta("aid_state", "unload")
+			set_meta("aid_t", 4.0)
+			cmd_stop()
+	elif st == "unload":
+		var t: float = get_meta("aid_t", 0.0) - dt
+		set_meta("aid_t", t)
+		if t <= 0.0:
+			set_meta("aid_state", "done")
+			world.aid_delivered(position)
+			if team == Game.player_team and not Game.demo_mode:
+				Game.message("Hilfsgüter verteilt", "good", team)
+			if Game.time - Game._aid_news_t > 20.0:
+				Game._aid_news_t = Game.time
+				Game.news(Data.HEADLINES_AID[randi() % Data.HEADLINES_AID.size()], "good" if Game.player_team == U.TEAM_ADF else "info")
+				Game.log_event("aid", "Hilfsgüter verteilt", position)
+			world.unregister(self)
+			alive = false
+			if selected:
+				world.deselect_entity(self)
+			queue_free()
 
 func _target_still_valid(t: Entity) -> bool:
 	if order_type == "attack_move":
@@ -647,12 +731,20 @@ func panic_from(src: Vector3, secs: float = 6.0) -> void:
 	if away.length() < 0.1:
 		away = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
 	var dest := position + away.normalized() * randf_range(25.0, 45.0)
-	dest = Vector3(clampf(dest.x, -94.0, 94.0), 0.0, clampf(dest.z, -94.0, 94.0))
+	dest = Vector3(clampf(dest.x, -City.HALF + 6.0, City.HALF - 6.0), 0.0, clampf(dest.z, -City.HALF + 6.0, City.HALF - 6.0))
+	_set_path(dest)
+
+## Zivilist laeuft gezielt zu einem Ziel (Evakuierungskorridor)
+func flee_to(dest: Vector3, secs: float) -> void:
+	if not is_civ or not alive or garrison != null:
+		return
+	_flee_t = secs
+	_civ_state = "flee"
 	_set_path(dest)
 
 func _flee_to_random() -> void:
 	var dest := position + Vector3(randf_range(-30, 30), 0, randf_range(-30, 30))
-	dest = Vector3(clampf(dest.x, -94.0, 94.0), 0.0, clampf(dest.z, -94.0, 94.0))
+	dest = Vector3(clampf(dest.x, -City.HALF + 6.0, City.HALF - 6.0), 0.0, clampf(dest.z, -City.HALF + 6.0, City.HALF - 6.0))
 	_set_path(dest)
 
 # ----------------------------------------------------------------------------- Bewegung
@@ -792,7 +884,7 @@ func _move_air(dt: float) -> void:
 	var speed := spd * clampf(1.2 - diff, 0.25, 1.0)
 	position += Vector3(sin(heading), 0, cos(heading)) * minf(speed * dt, d)
 	if has_meta("leaving"):
-		if position.length() > 118.0:
+		if position.length() > City.HALF * 1.6:
 			world.unregister(self)
 			alive = false
 			if selected:
@@ -800,7 +892,7 @@ func _move_air(dt: float) -> void:
 			queue_free()
 		moving = true
 		return
-	position = Vector3(clampf(position.x, -98.0, 98.0), 0.0, clampf(position.z, -98.0, 98.0))
+	position = Vector3(clampf(position.x, -City.HALF + 2.0, City.HALF - 2.0), 0.0, clampf(position.z, -City.HALF + 2.0, City.HALF - 2.0))
 	moving = true
 
 # ----------------------------------------------------------------------------- Animation

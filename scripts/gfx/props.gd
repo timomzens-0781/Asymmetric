@@ -32,6 +32,17 @@ static func get_mesh(name: String) -> ArrayMesh:
 		"signpost": m = _signpost()
 		"planter": m = _planter()
 		"ac_wall": m = _ac_wall()
+		"tent": m = _tent(false)
+		"tent_big": m = _tent(true)
+		"goal": m = _goal()
+		"obelisk": m = _obelisk()
+		"tree": m = _tree()
+		"container": m = _container()
+		"bus": m = _bus()
+		"kiosk": m = _kiosk()
+		"tribune": m = _tribune()
+		"water_tank_ground": m = _ground_tank()
+		"flagpole": m = _flagpole()
 		_:
 			m = ArrayMesh.new()
 	_meshes[name] = m
@@ -329,3 +340,142 @@ static func _bush() -> ArrayMesh:
 		var c := Color(0.4, 0.42, 0.2) * rng.randf_range(0.8, 1.15)
 		mb.sphere(Vector3(rng.randf_range(-0.5, 0.5), 0.35, rng.randf_range(-0.5, 0.5)), rng.randf_range(0.4, 0.7), c, Vector3(1, 0.7, 1), 3, 6)
 	return mb.build(Gfx.vcol_mat(1.0, 0.0))
+
+# ------------------------------------------------------------------ Plaetze, Park, Lager
+static func _tent(big: bool) -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.25
+	mb.jitter = 0.03
+	var w := 4.2 if big else 2.8
+	var l := 5.6 if big else 3.6
+	var h := 2.4 if big else 1.8
+	var cloth := Color(0.86, 0.84, 0.76)
+	var stripe := Color(0.2, 0.38, 0.62)
+	# Giebelzelt: zwei geneigte Daecher + Giebelwaende
+	var roof_w := sqrt(w * w * 0.25 + h * h)
+	var ang := rad_to_deg(atan2(h, w * 0.5))
+	mb.box_t(Vector3(-w * 0.25, h * 0.5 + 0.2, 0), Vector3(roof_w, 0.06, l), cloth, Vector3(0, 0, -ang))
+	mb.box_t(Vector3(w * 0.25, h * 0.5 + 0.2, 0), Vector3(roof_w, 0.06, l), cloth * 0.93, Vector3(0, 0, ang))
+	mb.box(Vector3(-w * 0.5 + 0.02, 0.6, 0), Vector3(0.05, 1.0, l), cloth * 0.88)
+	mb.box(Vector3(w * 0.5 - 0.02, 0.6, 0), Vector3(0.05, 1.0, l), cloth * 0.88)
+	for sz in [-l * 0.5, l * 0.5]:
+		mb.box(Vector3(0, 0.8, sz), Vector3(w, 1.6, 0.05), cloth * 0.9)
+		mb.box(Vector3(0, 1.65, sz), Vector3(w * 0.6, 0.5, 0.05), cloth * 0.9)
+	# Blaues Band (Hilfswerk) und Eingang
+	mb.box(Vector3(0, 0.2, l * 0.5 + 0.03), Vector3(w, 0.18, 0.03), stripe)
+	mb.box(Vector3(0, 0.75, l * 0.5 + 0.03), Vector3(0.8, 1.3, 0.03), Color(0.15, 0.13, 0.1))
+	# Abspannleinen / Heringe
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			mb.cyl(Vector3(sx * (w * 0.5 + 0.5), 0.15, sz * (l * 0.5)), 0.03, 0.03, 0.3, Color(0.4, 0.4, 0.4), 4)
+	return mb.build(Gfx.vcol_mat(0.95, 0.0))
+
+static func _goal() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	var white := Color(0.92, 0.92, 0.9)
+	var net := Color(0.8, 0.8, 0.8)
+	mb.box(Vector3(-3.6, 1.2, 0), Vector3(0.12, 2.4, 0.12), white)
+	mb.box(Vector3(3.6, 1.2, 0), Vector3(0.12, 2.4, 0.12), white)
+	mb.box(Vector3(0, 2.4, 0), Vector3(7.3, 0.12, 0.12), white)
+	for sx in [-3.6, 3.6]:
+		mb.beam(Vector3(sx, 2.4, 0), Vector3(sx, 0.05, -1.8), 0.07, white)
+	mb.beam(Vector3(-3.6, 2.4, 0), Vector3(-3.6, 2.35, -1.8), 0.05, white)
+	mb.box(Vector3(0, 1.2, -1.8), Vector3(7.2, 2.3, 0.02), net)
+	return mb.build(Gfx.vcol_mat(0.7, 0.1))
+
+static func _obelisk() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	var stone := Color(0.78, 0.74, 0.66)
+	mb.box(Vector3(0, 0.25, 0), Vector3(5.0, 0.5, 5.0), stone * 0.92)
+	mb.box(Vector3(0, 0.75, 0), Vector3(4.0, 0.5, 4.0), stone * 0.96)
+	mb.box(Vector3(0, 1.4, 0), Vector3(2.4, 0.9, 2.4), stone)
+	mb.cyl(Vector3(0, 6.2, 0), 1.0, 0.55, 9.0, stone, 4)
+	mb.cyl(Vector3(0, 11.0, 0), 0.55, 0.0, 0.9, Color(0.82, 0.7, 0.35), 4)
+	# Relief-Band
+	mb.box(Vector3(0, 2.2, 1.21), Vector3(1.5, 0.5, 0.04), Color(0.55, 0.5, 0.42))
+	return mb.build(Gfx.vcol_mat(0.85, 0.1))
+
+static func _tree() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	mb.cyl(Vector3(0, 1.3, 0), 0.32, 0.22, 2.6, Color(0.36, 0.28, 0.2), 7)
+	mb.beam(Vector3(0, 2.3, 0), Vector3(0.9, 3.4, 0.3), 0.18, Color(0.36, 0.28, 0.2))
+	mb.beam(Vector3(0, 2.4, 0), Vector3(-0.8, 3.3, -0.4), 0.16, Color(0.36, 0.28, 0.2))
+	for i in range(9):
+		var a := rng.randf() * TAU
+		var r := rng.randf_range(0.6, 2.0)
+		var c := Color(0.32, 0.44, 0.2) * rng.randf_range(0.8, 1.2)
+		mb.sphere(Vector3(cos(a) * r, 3.6 + rng.randf_range(-0.2, 1.0), sin(a) * r), rng.randf_range(0.9, 1.5), c, Vector3(1, 0.7, 1), 4, 7)
+	return mb.build(Gfx.vcol_mat(1.0, 0.0))
+
+static func _container() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.25
+	var col := Color(0.55, 0.22, 0.15)
+	mb.box(Vector3(0, 1.3, 0), Vector3(2.4, 2.6, 6.0), col)
+	for i in range(9):
+		mb.box(Vector3(-1.21, 1.3, -2.6 + i * 0.65), Vector3(0.05, 2.5, 0.12), col * 0.8)
+		mb.box(Vector3(1.21, 1.3, -2.6 + i * 0.65), Vector3(0.05, 2.5, 0.12), col * 0.8)
+	mb.box(Vector3(0, 1.3, 3.01), Vector3(2.3, 2.5, 0.03), col * 0.7)
+	mb.box(Vector3(0.5, 1.3, 3.04), Vector3(0.06, 2.3, 0.04), Color(0.5, 0.5, 0.5))
+	mb.box(Vector3(-0.5, 1.3, 3.04), Vector3(0.06, 2.3, 0.04), Color(0.5, 0.5, 0.5))
+	return mb.build(Gfx.vcol_mat(0.8, 0.3))
+
+static func _bus() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	var body := Color(0.85, 0.8, 0.6)
+	var glass := Color(0.12, 0.16, 0.2)
+	var dark := Color(0.08, 0.08, 0.08)
+	mb.box(Vector3(0, 1.7, 0), Vector3(2.5, 2.6, 10.5), body)
+	mb.box(Vector3(0, 2.1, 0), Vector3(2.56, 0.9, 9.8), glass)
+	mb.box(Vector3(0, 1.0, 0), Vector3(2.56, 0.25, 10.4), Color(0.8, 0.2, 0.15))
+	mb.box(Vector3(0, 2.1, 5.27), Vector3(2.3, 1.1, 0.05), glass)
+	mb.box(Vector3(0, 3.05, 0), Vector3(2.2, 0.12, 9.6), body * 0.9)
+	for sx in [-1.25, 1.25]:
+		for sz in [-3.4, 3.4]:
+			mb.cyl(Vector3(sx, 0.5, sz), 0.5, 0.5, 0.3, dark, 10, 1)
+	return mb.build(Gfx.vcol_mat(0.6, 0.3))
+
+static func _kiosk() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	mb.box(Vector3(0, 1.2, 0), Vector3(2.6, 2.4, 2.4), Color(0.8, 0.74, 0.58))
+	mb.box(Vector3(0, 1.4, 1.22), Vector3(1.8, 0.9, 0.04), Color(0.1, 0.14, 0.18))
+	mb.box_t(Vector3(0, 2.2, 1.5), Vector3(3.0, 0.08, 1.4), Color(0.75, 0.2, 0.15), Vector3(10, 0, 0))
+	mb.box(Vector3(0, 2.5, 0), Vector3(2.8, 0.14, 2.6), Color(0.7, 0.66, 0.55))
+	mb.box(Vector3(0, 0.95, 1.4), Vector3(2.2, 0.08, 0.5), Color(0.5, 0.38, 0.25))
+	return mb.build(Gfx.vcol_mat(0.9, 0.0))
+
+static func _tribune() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	var conc := Color(0.66, 0.64, 0.6)
+	for i in range(5):
+		mb.box(Vector3(0, 0.3 + i * 0.45, -i * 0.9), Vector3(14.0, 0.6 + i * 0.45, 0.9), conc)
+		for k in range(7):
+			var c: Color = [Color(0.2, 0.4, 0.7), Color(0.8, 0.25, 0.2), Color(0.9, 0.8, 0.3)][(i + k) % 3]
+			mb.box(Vector3(-5.6 + k * 1.9, 0.9 + i * 0.45, -i * 0.9 + 0.1), Vector3(0.6, 0.12, 0.35), c)
+	mb.box(Vector3(0, 3.6, -3.8), Vector3(14.4, 0.15, 3.2), Color(0.35, 0.36, 0.4))
+	for sx in [-6.8, 6.8]:
+		mb.box(Vector3(sx, 1.8, -4.8), Vector3(0.15, 3.6, 0.15), Color(0.3, 0.3, 0.32))
+	return mb.build(Gfx.vcol_mat(0.9, 0.1))
+
+static func _ground_tank() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.cyl(Vector3(0, 1.1, 0), 1.4, 1.4, 2.2, Color(0.75, 0.78, 0.8), 14)
+	mb.cyl(Vector3(0, 2.25, 0), 1.3, 0.4, 0.2, Color(0.7, 0.72, 0.74), 14)
+	mb.box(Vector3(0, 0.1, 1.5), Vector3(1.4, 0.2, 1.0), Color(0.5, 0.5, 0.5))
+	mb.cyl(Vector3(0, 0.55, 1.5), 0.05, 0.05, 1.0, Color(0.2, 0.3, 0.6), 5)
+	return mb.build(Gfx.vcol_mat(0.5, 0.4))
+
+static func _flagpole() -> ArrayMesh:
+	var mb := MeshBuilder.new()
+	mb.cyl(Vector3(0, 4.5, 0), 0.07, 0.05, 9.0, Color(0.75, 0.75, 0.78), 6)
+	mb.sphere(Vector3(0, 9.05, 0), 0.12, Color(0.85, 0.7, 0.3), Vector3.ONE, 3, 6)
+	mb.box(Vector3(0.9, 8.2, 0), Vector3(1.8, 1.1, 0.03), Color(0.9, 0.9, 0.92))
+	mb.box(Vector3(0.9, 8.2, 0), Vector3(1.8, 0.37, 0.04), Color(0.2, 0.45, 0.75))
+	return mb.build(Gfx.vcol_mat(0.7, 0.2))

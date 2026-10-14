@@ -15,6 +15,7 @@ var garrisoned: Array = []
 var garrison_cap := 5
 var queue: Array = []           # {kind, t, total}
 var rally := Vector3.ZERO
+var rally_hub: Structure = null   # Neuzugaenge (Infanterie) reisen durch den Tunnel zu diesem Knoten
 var produces: Array = []
 var weapons: Array = []
 var target: Entity = null
@@ -124,7 +125,7 @@ func exit_pos(vehicle: bool) -> Vector3:
 	var p: Vector3
 	if team == U.TEAM_ADF:
 		# Ausgang in Richtung Sammelplatz der Basis
-		var a := Vector3(-62, 0, 70) - position
+		var a := world.city.base_assembly - position
 		a.y = 0.0
 		var dir := a.normalized() if a.length() > 1.0 else Vector3(0, 0, 1)
 		var tx := hx / maxf(absf(dir.x), 0.001)

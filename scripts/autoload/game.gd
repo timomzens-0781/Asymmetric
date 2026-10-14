@@ -42,6 +42,14 @@ var _hub_total := 0
 var _end_check_t := 0.0
 var _upload_hint_t := 0.0
 var fire_clusters: Array = []     # Feuergefechte der eigenen Seite: {pos, t, alert_t}
+var briefing_t := 0.0             # Presse-Briefing aktiv: neue Empoerung wirkt abgeschwaecht
+var timeline: Array = []          # Ereignisprotokoll: {t, kind, text, pos, o}
+var outrage_samples := PackedFloat32Array()   # Empoerung im 2-s-Takt
+var anger_samples := PackedFloat32Array()     # Summe Wut aller Viertel im 2-s-Takt
+var attrib: Dictionary = {}       # Ursache -> Empoerung (nur Zuwachs)
+var footage_src: Dictionary = {}  # Ursache -> unveroeffentlichtes Material
+var _sample_t := 0.0
+var _aid_news_t := -99.0
 
 func start(side: int, diff: int, demo: bool) -> void:
 	player_team = side
@@ -69,11 +77,19 @@ func start(side: int, diff: int, demo: bool) -> void:
 	_upload_hint_t = 0.0
 	_decay_t = 0.0
 	_end_check_t = 0.0
+	briefing_t = 0.0
+	timeline.clear()
+	outrage_samples = PackedFloat32Array()
+	anger_samples = PackedFloat32Array()
+	attrib.clear()
+	footage_src.clear()
+	_sample_t = 0.0
+	_aid_news_t = -99.0
 	_rng.randomize()
 	stats = {
 		"civ_killed": 0, "civ_by_adf": 0, "civ_by_reb": 0, "adf_lost": 0, "reb_lost": 0,
 		"hubs_destroyed": 0, "hubs_total": 0, "buildings_destroyed": 0, "uploads": 0, "launches": 0,
-		"evidence_published": 0, "shots_warned": 0,
+		"evidence_published": 0, "shots_warned": 0, "tunnel_trips": 0, "recruits": 0, "aid_delivered": 0, "strikes": 0,
 	}
 	outrage_changed.emit(outrage)
 	level_changed.emit(level)
@@ -167,6 +183,15 @@ func _process(dt: float) -> void:
 		budget[0] += income_rate(0)
 		budget[1] += income_rate(1)
 	fire_clusters = fire_clusters.filter(func(c): return time - c.t < 8.0)
+	if briefing_t > 0.0:
+		briefing_t = maxf(0.0, briefing_t - dt)
+		if outrage > 0.0:
+			add_outrage(-0.05 * dt, true, "")
+	_sample_t -= dt
+	if _sample_t <= 0.0:
+		_sample_t = 2.0
+		outrage_samples.append(outrage)
+		anger_samples.append(world.total_anger() if world != null else 0.0)
 	# Abklingzeiten
 	for t in range(2):
 		var cd: Dictionary = cooldowns[t]
@@ -214,8 +239,12 @@ func media_alive() -> int:
 	return n
 
 # ============================================================================= Empoerung
-func add_outrage(v: float, silent: bool = false) -> void:
+func add_outrage(v: float, silent: bool = false, cause: String = "other", attribute: bool = true) -> void:
 	var old := outrage
+	if v > 0.0 and briefing_t > 0.0:
+		v *= 0.7
+	if v > 0.0 and attribute and cause != "":
+		attrib[cause] = float(attrib.get(cause, 0.0)) + v
 	outrage = clampf(outrage + v, 0.0, 100.0)
 	peak_outrage = maxf(peak_outrage, outrage)
 	if not silent and v > 0.0:
@@ -249,6 +278,40 @@ func add_outrage(v: float, silent: bool = false) -> void:
 			level_changed.emit(level)
 			message_posted.emit("Die Lage entspannt sich: Stufe %d" % level, "good", -1)
 
+# ----------------------------------------------------------------------------- Videomaterial & Ursachen
+const CAUSE_LABELS := {
+	"strike": "Luft- & Artillerieschläge", "collapse": "Eingestürzte Wohnhäuser", "direct": "Beschuss von Zivilisten",
+	"ambiguous": "Unklare Vorfälle (Getarnte erschossen)", "press": "Getötete Journalisten", "sensitive": "Klinik / Schule getroffen",
+	"check": "Schikane bei Kontrollen", "other": "Sonstiges",
+}
+
+func add_footage(amount: float, cause: String) -> void:
+	footage += amount
+	footage_src[cause] = float(footage_src.get(cause, 0.0)) + amount
+
+## Entnimmt Videomaterial anteilig nach Ursache; liefert {Ursache: Anteil}
+func take_footage(amount: float) -> Dictionary:
+	var out := {}
+	var total := maxf(footage, 0.0001)
+	var frac := clampf(amount / total, 0.0, 1.0)
+	for c in footage_src.keys():
+		var part: float = footage_src[c] * frac
+		out[c] = part
+		footage_src[c] = footage_src[c] - part
+	footage = maxf(footage - amount, 0.0)
+	return out
+
+func _attribute_gain(gain: float, portions: Dictionary, amount: float) -> void:
+	if amount <= 0.0001 or gain <= 0.0:
+		return
+	for c in portions.keys():
+		attrib[c] = float(attrib.get(c, 0.0)) + gain * float(portions[c]) / amount
+
+func log_event(kind: String, text: String, pos: Vector3 = Vector3.ZERO) -> void:
+	if timeline.size() > 500:
+		timeline.pop_front()
+	timeline.append({"t": time, "kind": kind, "text": text, "pos": pos, "o": outrage})
+
 func report_civilian_deaths(pos: Vector3, n: float, by_team: int, cause: String, direct: bool = false) -> void:
 	if n <= 0.0:
 		return
@@ -256,18 +319,25 @@ func report_civilian_deaths(pos: Vector3, n: float, by_team: int, cause: String,
 	stats.civ_killed += int(ceil(n))
 	if by_team == U.TEAM_ADF:
 		stats.civ_by_adf += int(ceil(n))
+		if world != null:
+			world.add_anger(pos, n * (4.5 if direct else 3.2))
 	elif by_team == U.TEAM_REB:
 		stats.civ_by_reb += int(ceil(n))
+		if world != null:
+			world.add_anger(pos, -n * 2.0)
 
-func report_event_outrage(pos: Vector3, amount: float, headline: String = "") -> void:
+func report_event_outrage(pos: Vector3, amount: float, headline: String = "", cause: String = "other") -> void:
 	## Direkte Empoerung (z.B. Klinik getroffen, Journalisten getoetet)
 	var vis := footage_visibility(pos)
 	var gain := amount * (0.6 + 0.6 * vis)
-	footage += gain * 0.5
-	add_outrage(gain * 0.5)
+	add_footage(gain * 0.5, cause)
+	add_outrage(gain * 0.5, false, cause)
 	if headline != "":
 		news_posted.emit(headline, "bad")
 	alert.emit(pos, "outrage")
+	log_event(cause, headline if headline != "" else "Empörung durch Zwischenfall", pos)
+	if world != null:
+		world.add_anger(pos, amount * 1.2)
 
 func footage_visibility(pos: Vector3) -> float:
 	## Wie gut ist das Ereignis dokumentiert? Medien-Teams in der Naehe verdoppeln die Wirkung.
@@ -313,16 +383,23 @@ func _flush_civ_events() -> void:
 				sev = 0.45
 			var vis := footage_visibility(g.pos)
 			var raw: float = g.n * 1.0 * sev
-			var cam: float = 1.0 if vis >= 0.99 else 0.55
 			var gain := raw * (0.45 + vis * 0.9)
+			var cause_key: String = "strike"
+			if g.cause == "collapse":
+				cause_key = "collapse"
+			elif g.cause == "direct":
+				cause_key = "direct"
+			elif g.cause == "ambiguous":
+				cause_key = "ambiguous"
 			# Rebellen-Seite: Material wird hochgeladen (Medien-Team) oder sickert durch
 			if media_alive() > 0 or demo_mode:
-				footage += gain
+				add_footage(gain, cause_key)
 				if _is_ai_rebel():
 					_ai_upload()
 			else:
-				add_outrage(gain * 0.55)
-				footage += gain * 0.35
+				add_outrage(gain * 0.55, false, cause_key)
+				add_footage(gain * 0.35, cause_key)
+			log_event("casualties", "%d Zivilisten getötet (%s)" % [int(round(g.n)), CAUSE_LABELS.get(cause_key, "")], g.pos)
 			alert.emit(g.pos, "casualties")
 			var n := int(round(g.n))
 			var pool: Array = Data.HEADLINES_CIV_DIRECT if g.direct else Data.HEADLINES_CIV_STRIKE
@@ -335,7 +412,8 @@ func _flush_civ_events() -> void:
 			_last_event_t = time
 		elif g.by == U.TEAM_REB:
 			evidence += g.n * 0.8
-			add_outrage(-g.n * 0.25, true)
+			add_outrage(-g.n * 0.25, true, "")
+			log_event("evidence", "%d Zivilisten durch Raketen der Hadar-Front getötet" % int(round(g.n)), g.pos)
 			news_posted.emit("Zivilisten durch Raketen der Hadar-Front getötet – Aurelia sammelt Beweise", "info")
 
 func _is_ai_rebel() -> bool:
@@ -352,9 +430,12 @@ func upload_footage(auto: bool = false) -> bool:
 	if media_alive() <= 0 and not demo_mode:
 		return false
 	var gain := footage * 1.35
-	footage = 0.0
+	var raw_amt := footage
+	var portions := take_footage(footage)
 	stats.uploads += 1
-	add_outrage(gain)
+	_attribute_gain(gain, portions, raw_amt)
+	add_outrage(gain, false, "", false)
+	log_event("upload", "Videomaterial veröffentlicht (+%.0f%% Empörung)" % gain)
 	if not auto or true:
 		message_posted.emit("Videomaterial veröffentlicht: Empörung +%.0f%%" % gain, "good" if player_team == U.TEAM_REB else "bad", -1)
 	return true
@@ -368,10 +449,19 @@ func unit_died(u: Unit, attacker: Entity, dtype: String) -> void:
 			direct = false
 		report_civilian_deaths(u.position, 1.0, by, "direct" if direct else "strike", direct)
 		return
+	if u.kind == "adf_aid":
+		if attacker != null and attacker.team == U.TEAM_REB:
+			evidence += 2.0
+			add_outrage(-2.5, true, "")
+			news_posted.emit(Data.HEADLINES_AID_ATTACKED[0], "good" if player_team == U.TEAM_ADF else "bad")
+			log_event("aid_attacked", "Hilfskonvoi von der Hadar-Front beschossen", u.position)
+			if world != null:
+				world.add_anger(u.position, -8.0)
+		return
 	if u.press:
 		# Getoetete Journalisten: grosse Empoerung, wenn ADF verantwortlich
 		if attacker != null and attacker.team == U.TEAM_ADF:
-			report_event_outrage(u.position, 9.0, Data.HEADLINES_PRESS_KILLED[0])
+			report_event_outrage(u.position, 9.0, Data.HEADLINES_PRESS_KILLED[0], "press")
 	if u.team == U.TEAM_ADF:
 		stats.adf_lost += 1
 	elif u.team == U.TEAM_REB:
@@ -387,6 +477,7 @@ func launch_detected(pos: Vector3, u: Unit) -> void:
 		return
 	_launch_alert_t = time + 3.0
 	stats.launches += 1
+	log_event("launch", "Raketenabschuss der Hadar-Front", pos)
 	# Gegenbatterie-Radar ortet die Abschussposition
 	if world != null and world.adf_has_radar():
 		u.exposed_t = maxf(u.exposed_t, 14.0)
@@ -410,12 +501,20 @@ func base_under_attack(s: Structure) -> void:
 func hub_destroyed(s: Structure) -> void:
 	stats.hubs_destroyed += 1
 	news_posted.emit(Data.HEADLINES_HUB[0], "good")
+	log_event("hub", "Tunnelknoten zerstört (%d von %d)" % [stats.hubs_destroyed, World.HUB_COUNT], s.position)
 
 func structure_destroyed(s: Structure, attacker: Entity) -> void:
 	stats.buildings_destroyed += 1
 	if s.kind_class in ["hospital", "school"] and attacker != null and attacker.team == U.TEAM_ADF:
 		var h: Array = Data.HEADLINES_SENSITIVE
-		report_event_outrage(s.position, 14.0, h[0] if s.kind_class == "hospital" else h[1])
+		report_event_outrage(s.position, 14.0, h[0] if s.kind_class == "hospital" else h[1], "sensitive")
+	elif s.team == U.TEAM_CIV and attacker != null and attacker.team == U.TEAM_ADF and world != null:
+		world.add_anger(s.position, 4.0)
+	if s.kind == "adf_fieldhosp" and attacker != null and attacker.team == U.TEAM_REB:
+		evidence += 3.0
+		add_outrage(-3.0, true, "")
+		news_posted.emit(Data.HEADLINES_AID_ATTACKED[1], "good" if player_team == U.TEAM_ADF else "bad")
+		log_event("aid_attacked", "Feldlazarett von der Hadar-Front zerstört", s.position)
 
 # ============================================================================= Faehigkeiten
 func ability_ready(team: int, id: String) -> bool:
@@ -433,6 +532,13 @@ func ability_ready(team: int, id: String) -> bool:
 		return false
 	if id == "donate" and outrage < 12.0:
 		return false
+	if id == "fieldhosp" and world != null:
+		var n := 0
+		for st in world.structures:
+			if st.alive and st.kind == "adf_fieldhosp":
+				n += 1
+		if n >= 2:
+			return false
 	return true
 
 func use_ability(team: int, id: String, pos: Vector3 = Vector3.ZERO) -> bool:
@@ -442,15 +548,25 @@ func use_ability(team: int, id: String, pos: Vector3 = Vector3.ZERO) -> bool:
 	budget[team] -= d.cost
 	cooldowns[team][id] = d.cd
 	ability_used.emit(id, team)
+	if id in ["airstrike", "precision", "salvo"]:
+		stats.strikes += 1
+		log_event("strike", "%s angefordert" % d.name, pos)
 	match id:
-		"airstrike", "precision", "salvo", "warning", "scan":
+		"airstrike", "precision", "salvo", "warning", "scan", "convoy", "fieldhosp", "corridor":
 			if world != null:
 				world.support.execute(id, team, pos)
+		"briefing":
+			briefing_t = 60.0
+			add_outrage(-2.5, true, "")
+			news_posted.emit("Aurelia-Sprecher: 'Wir tun alles, um Zivilisten zu schützen.'", "info")
+			message_posted.emit("Presse-Briefing: Empörung −2,5 %, neue Bilder wirken 60 s lang abgeschwächt", "good", team)
+			log_event("briefing", "Presse-Briefing abgehalten")
 		"evidence":
 			var gain := evidence * 3.2
 			evidence = 0.0
 			stats.evidence_published += 1
-			add_outrage(-gain, true)
+			add_outrage(-gain, true, "")
+			log_event("evidence", "Beweise veröffentlicht (−%.0f%% Empörung)" % gain)
 			news_posted.emit(Data.HEADLINES_EVIDENCE[_rng.randi() % Data.HEADLINES_EVIDENCE.size()], "good")
 			message_posted.emit("Beweise veröffentlicht: Empörung −%.0f%%" % gain, "good", team)
 		"upload":

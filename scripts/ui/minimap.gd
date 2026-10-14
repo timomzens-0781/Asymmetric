@@ -29,12 +29,14 @@ func _on_alert(pos: Vector3, kind: String) -> void:
 
 func _make_base() -> void:
 	var city := world.city
-	var img := Image.create(200, 200, false, Image.FORMAT_RGBA8)
+	var side := int(City.HALF * 2.0)
+	var h := int(City.HALF)
+	var img := Image.create(side, side, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.64, 0.56, 0.4))
 	var m := city.mask_img.duplicate() as Image
-	m.resize(200, 200, Image.INTERPOLATE_BILINEAR)
-	for y in range(200):
-		for x in range(200):
+	m.resize(side, side, Image.INTERPOLATE_BILINEAR)
+	for y in range(side):
+		for x in range(side):
 			var c := m.get_pixel(x, y)
 			if c.r > 0.5:
 				img.set_pixel(x, y, Color(0.3, 0.3, 0.31))
@@ -47,17 +49,17 @@ func _make_base() -> void:
 			col = Color(0.95, 0.95, 0.95)
 		elif b.kind == "school":
 			col = Color(0.9, 0.8, 0.45)
-		img.fill_rect(Rect2i(int(rect.position.x + 100), int(rect.position.y + 100), maxi(int(rect.size.x), 1), maxi(int(rect.size.y), 1)), col)
+		img.fill_rect(Rect2i(int(rect.position.x + h), int(rect.position.y + h), maxi(int(rect.size.x), 1), maxi(int(rect.size.y), 1)), col)
 	# Basis-Gelaende
 	var br := City.BASE_RECT
-	img.fill_rect(Rect2i(int(br.position.x + 100), int(br.position.y + 100), int(br.size.x), int(br.size.y)), Color(0.5, 0.5, 0.42))
+	img.fill_rect(Rect2i(int(br.position.x + h), int(br.position.y + h), int(br.size.x), int(br.size.y)), Color(0.5, 0.5, 0.42))
 	_base = ImageTexture.create_from_image(img)
 
 func _w2m(p: Vector3) -> Vector2:
-	return Vector2((p.x + 100.0) * SIZE / 200.0 + 2.0, (p.z + 100.0) * SIZE / 200.0 + 2.0)
+	return Vector2((p.x + City.HALF) * SIZE / (City.HALF * 2.0) + 2.0, (p.z + City.HALF) * SIZE / (City.HALF * 2.0) + 2.0)
 
 func _m2w(m: Vector2) -> Vector3:
-	return Vector3((m.x - 2.0) * 200.0 / SIZE - 100.0, 0.0, (m.y - 2.0) * 200.0 / SIZE - 100.0)
+	return Vector3((m.x - 2.0) * City.HALF * 2.0 / SIZE - City.HALF, 0.0, (m.y - 2.0) * City.HALF * 2.0 / SIZE - City.HALF)
 
 func _process(dt: float) -> void:
 	for p in _pings:
@@ -92,15 +94,32 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, SIZE + 4, SIZE + 4), Color(0.05, 0.05, 0.05, 0.95))
 	draw_texture_rect(_base, Rect2(2, 2, SIZE, SIZE), false)
 	var pt := player.team
+	# Wut der Viertel (rote Toenung) und Evakuierungskorridore
+	var cs := World.DIST_CELL * SIZE / (City.HALF * 2.0)
+	for cy in range(world.dist_n):
+		for cx in range(world.dist_n):
+			var a: float = world.anger[cy * world.dist_n + cx]
+			if a >= 6.0:
+				draw_rect(Rect2(_w2m(world.district_center(Vector2i(cx, cy))) - Vector2(cs, cs) * 0.5, Vector2(cs, cs)), Color(0.9, 0.12, 0.08, clampf(a / 100.0, 0.0, 1.0) * 0.55))
+	for c in world.corridors:
+		draw_arc(_w2m(c.pos), c.r * SIZE / (City.HALF * 2.0), 0, TAU, 20, Color(0.4, 0.9, 1.0, 0.9), 1.5)
 	# zerstoerte Gebaeude (Truemmer)
 	for rc in world.destroyed_rects:
-		draw_rect(Rect2(_w2m(Vector3(rc.position.x, 0, rc.position.y)), rc.size * SIZE / 200.0), Color(0.2, 0.17, 0.14))
+		draw_rect(Rect2(_w2m(Vector3(rc.position.x, 0, rc.position.y)), rc.size * SIZE / (City.HALF * 2.0)), Color(0.2, 0.17, 0.14))
+	# Tunnelnetz: Hadar-Front sieht alles, Aurelia nur entdeckte Verbindungen
+	for t in world.tunnels:
+		if not world.tunnel_active(t):
+			continue
+		if pt == U.TEAM_REB:
+			draw_dashed_line(_w2m((t.a as Structure).position), _w2m((t.b as Structure).position), Color(1.0, 0.6, 0.15, 0.55), 1.0, 3.0)
+		elif t.known:
+			draw_dashed_line(_w2m((t.a as Structure).position), _w2m((t.b as Structure).position), Color(1.0, 0.25, 0.2, 0.8), 1.2, 3.0)
 	# Gebaeude-Marker
 	for s in world.structures:
 		if not s.alive:
 			continue
 		if s.team == U.TEAM_ADF:
-			draw_rect(Rect2(_w2m(s.position) - Vector2(s.hx, s.hz) * SIZE / 200.0, Vector2(s.hx, s.hz) * 2.0 * SIZE / 200.0), Color(0.3, 0.55, 0.95, 0.9))
+			draw_rect(Rect2(_w2m(s.position) - Vector2(s.hx, s.hz) * SIZE / (City.HALF * 2.0), Vector2(s.hx, s.hz) * 2.0 * SIZE / (City.HALF * 2.0)), Color(0.3, 0.55, 0.95, 0.9))
 		elif s.hub and (pt == U.TEAM_REB or s.revealed):
 			var c := Color(1.0, 0.5, 0.1) if pt == U.TEAM_REB else Color(1.0, 0.2, 0.2)
 			var mp := _w2m(s.position)
@@ -142,7 +161,7 @@ func _draw() -> void:
 	var pts := PackedVector2Array()
 	for c in [Vector2(0, 0), Vector2(vp.x, 0), Vector2(vp.x, vp.y * 0.78), Vector2(0, vp.y * 0.78)]:
 		var g := rig.ground_point(c)
-		pts.append(_w2m(Vector3(clampf(g.x, -100, 100), 0, clampf(g.z, -100, 100))))
+		pts.append(_w2m(Vector3(clampf(g.x, -City.HALF, City.HALF), 0, clampf(g.z, -City.HALF, City.HALF))))
 	pts.append(pts[0])
 	draw_polyline(pts, Color(1, 1, 1, 0.9), 1.4)
 	draw_rect(Rect2(1, 1, SIZE + 2, SIZE + 2), Color(0.85, 0.64, 0.25, 0.9), false, 2.0)

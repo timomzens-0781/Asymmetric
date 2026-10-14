@@ -35,6 +35,8 @@ func _fresh() -> void:
 		if u.alive and u.is_civ:
 			world.unregister(u)
 			u.queue_free()
+	for st in world.structures:
+		st.garrisoned.clear()
 	world._rebuild_dyn()
 	world.roe_free[0] = false
 	await get_tree().process_frame
@@ -54,6 +56,8 @@ func _ready() -> void:
 	await _test_launcher()
 	await _test_airstrike_and_warning()
 	await _test_no_fly()
+	await _test_tunnel()
+	await _test_anger_and_aid()
 	print("== Ergebnis: %d bestanden, %d fehlgeschlagen ==" % [passes, fails])
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -158,12 +162,12 @@ func _test_garrison_collapse() -> void:
 func _test_ied() -> void:
 	print("-- Sprengfalle")
 	await _fresh()
-	var sab := world.spawn_unit("reb_saboteur", 1, _free_spot(40, 2))
+	var sab := world.spawn_unit("reb_saboteur", 1, _free_spot(30, 2))
 	Game.budget[1] = 500.0
 	_check("IED legen", sab.cmd_place_ied())
-	var apc := world.spawn_unit("adf_apc", 0, world.nav.nearest_free_pos(Vector3(40, 0, 12), "veh", 8))
+	var apc := world.spawn_unit("adf_apc", 0, world.nav.nearest_free_pos(Vector3(30, 0, 14), "veh", 8))
 	var hp0 := apc.hp
-	apc.cmd_move(world.nav.nearest_free_pos(Vector3(40, 0, -6), "veh", 8))
+	apc.cmd_move(world.nav.nearest_free_pos(Vector3(30, 0, -8), "veh", 8))
 	await _wait(8.0)
 	_check("Fahrzeug nimmt IED-Schaden", apc.hp < hp0, "hp=%d/%d" % [apc.hp, hp0])
 
@@ -172,7 +176,7 @@ func _test_launcher() -> void:
 	await _fresh()
 	var l := world.spawn_unit("reb_launcher", 1, world.nav.nearest_free_pos(Vector3(10, 0, 40), "veh", 10))
 	await _wait(0.6)
-	l.cmd_attack_ground(Vector3(-62, 0, 70))
+	l.cmd_attack_ground(world.city.base_assembly)
 	await _wait(14.0)
 	_check("Raketenabschuss registriert", Game.stats.launches >= 1, "launches=%d" % Game.stats.launches)
 	_check("Rampe bei Abschuss enttarnt", l.exposed_t > 0.0 or not l.concealed)
@@ -204,3 +208,133 @@ func _test_no_fly() -> void:
 	_check("Luftschlag gesperrt", not Game.ability_ready(0, "airstrike"))
 	await _wait(18.0)
 	_check("Hubschrauber abgezogen", not is_instance_valid(heli) or not heli.alive or heli.position.length() > 100.0, "pos=%s" % heli.position if is_instance_valid(heli) else "freed")
+
+func _test_tunnel() -> void:
+	print("-- Tunnelnetz")
+	await _fresh()
+	_check("Tunnelnetz verbindet alle Knoten", world.tunnels.size() >= world.hubs.size() - 1, "links=%d hubs=%d" % [world.tunnels.size(), world.hubs.size()])
+	var a: Structure = world.hubs[0]
+	var b: Structure = world.hubs[world.hubs.size() - 1]
+	var route := world.tunnel_route(a, b)
+	_check("Route zwischen entfernten Knoten", route.size() >= 2, "hops=%d len=%.0f" % [route.size() - 1, world.route_length(route)])
+	var u := world.spawn_unit("reb_fighter", 1, a.door_pos(a.position))
+	u.enter_garrison(a)
+	_check("Kaempfer sitzt im Knoten A", u.garrison == a)
+	_check("Tunnelreise startet", u.cmd_tunnel(b))
+	_check("Unterwegs: gehoert nun zu B", u.tunnel_t > 0.0 and u.garrison == b and not (u in a.garrisoned))
+	var dur := u.tunnel_dur
+	await _wait(dur * 1.3 + 1.5)
+	_check("Ankunft im Zielknoten", u.tunnel_t <= 0.0 and u.garrison == b and u.alive)
+	# Ziel zerstoert, waehrend jemand unterwegs ist
+	var u2 := world.spawn_unit("reb_fighter", 1, a.door_pos(a.position))
+	u2.enter_garrison(a)
+	_check("zweite Reise startet", u2.cmd_tunnel(b))
+	await _wait(0.5)
+	b.hp = 1.0
+	b.take_damage(500.0, null, "ap", b.position)
+	await _wait(2.0)
+	_check("Zielknoten zerstoert", not b.alive)
+	_check("Insassen sterben mit dem Knoten", not u2.alive and not u.alive)
+	_check("Zerstoerter Knoten kappt Verbindungen", world.tunnel_links(b).is_empty())
+	# Aufklaerung findet Verbindung
+	await _fresh()
+	var t: Dictionary = world.tunnels[0]
+	var mid: Vector3 = ((t.a as Structure).position + (t.b as Structure).position) * 0.5
+	var tries := 0
+	while not t.known and tries < 40:
+		world.support._scan(mid)
+		tries += 1
+	_check("Scan entdeckt Tunnelverbindung", t.known, "tries=%d" % tries)
+	_check("Beide Knoten gelten als entdeckt", t.a.revealed and t.b.revealed)
+
+func _test_anger_and_aid() -> void:
+	print("-- Radikalisierung & Hilfsmassnahmen")
+	await _fresh()
+	var spot := Vector3(60, 0, 20)
+	var a0: float = world.anger_at(spot)
+	Game.report_civilian_deaths(spot, 5.0, 0, "strike", false)
+	_check("Zivile Opfer erhoehen Wut im Viertel", world.anger_at(spot) > a0 + 8.0, "anger=%.1f" % world.anger_at(spot))
+	# Freiwillige
+	var cell := world.district_of(spot)
+	var cen := world.district_center(cell)
+	for i in range(6):
+		world.spawn_civilian(_free_spot(cen.x + i * 2.0 - 6.0, cen.z))
+	world.anger[cell.y * world.dist_n + cell.x] = 95.0
+	var n_reb := 0
+	for u in world.units:
+		if u.alive and u.team == 1:
+			n_reb += 1
+	for i in range(30):
+		world._recruit_tick(5.0)
+		world.anger[cell.y * world.dist_n + cell.x] = 95.0
+	var n_reb2 := 0
+	for u in world.units:
+		if u.alive and u.team == 1:
+			n_reb2 += 1
+	_check("Wut erzeugt Freiwillige", Game.stats.recruits >= 1 and n_reb2 > n_reb, "recruits=%d reb %d->%d" % [Game.stats.recruits, n_reb, n_reb2])
+	# Wut senkt Verdacht
+	# Evakuierungskorridor
+	await _fresh()
+	var c0 := _free_spot(0, 0)
+	var civs: Array = []
+	for i in range(8):
+		civs.append(world.spawn_civilian(_free_spot(c0.x + i * 2.5 - 8.0, c0.z + 6.0)))
+	await _wait(0.3)
+	Game.budget[0] = 5000.0
+	var d0 := 0.0
+	for c in civs:
+		d0 += U.dist2d(c.position, c0)
+	_check("Korridor startbar", Game.use_ability(0, "corridor", c0))
+	await _wait(14.0)
+	var d1 := 0.0
+	var alive := 0
+	for c in civs:
+		if is_instance_valid(c) and c.alive:
+			d1 += U.dist2d(c.position, c0)
+			alive += 1
+	_check("Zivilisten verlassen den Korridor", alive > 0 and d1 / alive > d0 / civs.size() + 8.0, "avg %.0f -> %.0f" % [d0 / civs.size(), d1 / maxf(alive, 1)])
+	_check("Korridor aktiv", world.corridors.size() == 1 and world.in_corridor(c0))
+	# Feldlazarett
+	await _fresh()
+	Game.budget[0] = 5000.0
+	var pc := world.city.pitch_rect.get_center()
+	var hp_cell := world.district_of(Vector3(pc.x, 0, pc.y))
+	world.anger[hp_cell.y * world.dist_n + hp_cell.x] = 60.0
+	_check("Feldlazarett startbar", Game.use_ability(0, "fieldhosp", Vector3(pc.x, 0, pc.y)))
+	var found_h := false
+	for st in world.structures:
+		if st.alive and st.kind == "adf_fieldhosp":
+			found_h = true
+	_check("Feldlazarett steht", found_h)
+	await _wait(12.0)
+	_check("Lazarett senkt Wut", world.anger[hp_cell.y * world.dist_n + hp_cell.x] < 58.0, "anger=%.1f" % world.anger[hp_cell.y * world.dist_n + hp_cell.x])
+	# Hilfskonvoi
+	await _fresh()
+	Game.budget[0] = 5000.0
+	var tgt: Vector3 = world.city.base_assembly + Vector3(70, 0, -45)
+	var tcell := world.district_of(tgt)
+	world.anger[tcell.y * world.dist_n + tcell.x] = 70.0
+	var an0: float = world.anger[tcell.y * world.dist_n + tcell.x]
+	_check("Konvoi startbar", Game.use_ability(0, "convoy", tgt))
+	var trucks := 0
+	for u in world.units:
+		if u.alive and u.kind == "adf_aid":
+			trucks += 1
+	_check("Drei Hilfslaster", trucks == 3, "n=%d" % trucks)
+	await _wait(70.0)
+	_check("Hilfsgueter geliefert", Game.stats.aid_delivered >= 1, "delivered=%d" % Game.stats.aid_delivered)
+	_check("Konvoi senkt Wut", world.anger[tcell.y * world.dist_n + tcell.x] < an0 - 10.0, "anger %.0f -> %.0f" % [an0, world.anger[tcell.y * world.dist_n + tcell.x]])
+	# Briefing
+	await _fresh()
+	Game.budget[0] = 5000.0
+	Game.add_outrage(20.0)
+	var o0: float = Game.outrage
+	_check("Briefing startbar", Game.use_ability(0, "briefing"))
+	_check("Briefing senkt Empoerung", Game.outrage < o0 - 2.0 and Game.briefing_t > 0.0, "o %.1f -> %.1f" % [o0, Game.outrage])
+	var o1: float = Game.outrage
+	Game.add_outrage(10.0)
+	_check("Briefing daempft neue Empoerung", Game.outrage - o1 < 8.0, "gain=%.1f" % (Game.outrage - o1))
+	# Ursachen-Statistik
+	await _fresh()
+	Game.report_event_outrage(Vector3(0, 0, 0), 10.0, "Test", "press")
+	_check("Ursachen werden erfasst", float(Game.attrib.get("press", 0.0)) > 1.0, "attrib=%s" % str(Game.attrib))

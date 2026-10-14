@@ -30,7 +30,16 @@ var atmos: Dictionary = {}
 var tod_start := 0.0
 var _tod_t := 0.0
 var _tod_win := -1.0
-var civ_cap := 110
+const HUB_COUNT := 7
+const DIST_CELL := 40.0               # Viertel-Raster fuer Radikalisierung
+var dist_n := 8
+var anger := PackedFloat32Array()     # 0..100 Wut je Viertel
+var corridors: Array = []             # {pos, r, t, ping}
+var _anger_t := 1.0
+var _recruit_news_t := 0.0
+const TUNNEL_SPEED := 24.0            # m/s im Tunnel
+var tunnels: Array = []               # {a: Structure, b: Structure, known: bool, len: float}
+var civ_cap := 170
 var hubs: Array = []
 var destroyed_rects: Array = []
 var sim_speed_note := 1.0
@@ -62,8 +71,12 @@ func build(seed_value: int, side: int, demo: bool, tod: float = 0.0) -> void:
 	adf_proxy.kind = "support"
 	adf_proxy.name = "AdfProxy"
 	add_child(adf_proxy)
+	dist_n = int(ceil(City.HALF * 2.0 / DIST_CELL))
+	anger.resize(dist_n * dist_n)
+	anger.fill(0.0)
 	_pick_hubs()
 	_create_buildings()
+	_build_tunnels()
 	_create_adf_base()
 	_spawn_start_forces()
 	_spawn_initial_civilians()
@@ -77,10 +90,10 @@ func _pick_hubs() -> void:
 			cands.append(b)
 	cands.shuffle()
 	var chosen: Array = []
-	# Gleichmaessig verteilen: Mindestabstand 26
-	for dist in [30.0, 24.0, 18.0, 12.0]:
+	# Gleichmaessig verteilen: Mindestabstand 40 -> 14
+	for dist in [42.0, 34.0, 26.0, 18.0, 12.0]:
 		for b in cands:
-			if chosen.size() >= 6:
+			if chosen.size() >= HUB_COUNT:
 				break
 			if b in chosen:
 				continue
@@ -106,6 +119,7 @@ func _create_buildings() -> void:
 			hubs.append(s)
 
 func _create_adf_base() -> void:
+	var off := City.BASE_OFF
 	var layout := [
 		["adf_hq", Vector3(-80, 0, 82)],
 		["adf_barracks", Vector3(-62, 0, 86)],
@@ -120,13 +134,13 @@ func _create_adf_base() -> void:
 		["adf_tower", Vector3(-72, 0, 49)],
 		["adf_tower", Vector3(-50, 0, 62)],
 	]
-	var assembly := Vector3(-62, 0, 70)
+	var assembly := city.base_assembly
 	for l in layout:
 		var s := Structure.new()
 		s.id = _next_id
 		_next_id += 1
 		s.setup_base(self, l[0], U.TEAM_ADF)
-		s.position = l[1]
+		s.position = l[1] + off
 		_entities_root.add_child(s)
 		# Front zum Sammelplatz drehen (90°-Schritte)
 		if l[0] != "adf_tower" and l[0] != "adf_radar":
@@ -145,7 +159,7 @@ func _create_adf_base() -> void:
 
 func _spawn_start_forces() -> void:
 	# ADF: Sammelplatz nahe dem Nordtor
-	var base := Vector3(-60, 0, 71)
+	var base := city.base_assembly + Vector3(2, 0, 1)
 	var plan := [
 		["adf_mbt", 2], ["adf_apc", 2], ["adf_rifle", 6], ["adf_recon", 2], ["adf_arty", 1], ["adf_drone", 1],
 	]
@@ -170,7 +184,7 @@ func _spawn_start_forces() -> void:
 		if b.zone == "old" or b.zone == "old_s":
 			rp.append(b)
 	rp.shuffle()
-	for k in range(7):
+	for k in range(11):
 		var b: Dictionary = rp[k % rp.size()]
 		var p := nav.nearest_free_pos(b.center + Vector3(b.size.x * 0.5 + 2.0, 0, rng.randf_range(-3, 3)), "foot", 6)
 		var u := spawn_unit("reb_fighter" if k % 3 != 0 else "reb_rpg", U.TEAM_REB, p)
@@ -187,7 +201,7 @@ func _spawn_start_forces() -> void:
 func _spawn_initial_civilians() -> void:
 	var n := 0
 	var tries := 0
-	while n < 95 and tries < 600:
+	while n < 150 and tries < 1200:
 		tries += 1
 		var p := city.random_street_point(rng)
 		if nav.is_solid_at(p, "foot"):
@@ -199,6 +213,274 @@ func _spawn_initial_civilians() -> void:
 
 func BaseRectContains(p: Vector3) -> bool:
 	return City.BASE_RECT.grow(1.0).has_point(Vector2(p.x, p.z))
+
+# ============================================================================= Viertel / Radikalisierung
+func district_of(p: Vector3) -> Vector2i:
+	return Vector2i(clampi(int((p.x + City.HALF) / DIST_CELL), 0, dist_n - 1), clampi(int((p.z + City.HALF) / DIST_CELL), 0, dist_n - 1))
+
+func district_center(c: Vector2i) -> Vector3:
+	return Vector3(-City.HALF + (c.x + 0.5) * DIST_CELL, 0.0, -City.HALF + (c.y + 0.5) * DIST_CELL)
+
+func district_name(c: Vector2i) -> String:
+	return "Planquadrat %s%d" % [char(65 + c.x), c.y + 1]
+
+func anger_at(p: Vector3) -> float:
+	var c := district_of(p)
+	return anger[c.y * dist_n + c.x]
+
+func add_anger(p: Vector3, amount: float) -> void:
+	var c := district_of(p)
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			var cc := Vector2i(c.x + dx, c.y + dy)
+			if cc.x < 0 or cc.y < 0 or cc.x >= dist_n or cc.y >= dist_n:
+				continue
+			var k := 1.0 if (dx == 0 and dy == 0) else (0.4 if (dx == 0 or dy == 0) else 0.18)
+			var i := cc.y * dist_n + cc.x
+			anger[i] = clampf(anger[i] + amount * k, 0.0, 100.0)
+
+func total_anger() -> float:
+	var t := 0.0
+	for a in anger:
+		t += a
+	return t
+
+func angry_districts(min_a: float = 25.0) -> int:
+	var n := 0
+	for a in anger:
+		if a >= min_a:
+			n += 1
+	return n
+
+func in_corridor(p: Vector3) -> bool:
+	for c in corridors:
+		if U.dist2d(c.pos, p) <= c.r:
+			return true
+	return false
+
+func _district_tick(dt: float) -> void:
+	# Wut klingt langsam ab; Feldlazarette beruhigen ihr Umfeld
+	for i in range(anger.size()):
+		anger[i] = maxf(0.0, anger[i] - 0.05 * dt)
+	var hosp := 0
+	for s in structures:
+		if s.alive and s.kind == "adf_fieldhosp":
+			hosp += 1
+			add_anger(s.position, -0.9 * dt)
+	if hosp > 0 and Game.running and not Game.demo_mode and int(Game.time) % 10 == 0:
+		Game.add_outrage(-0.08 * hosp, true, "")
+	# Korridore
+	for c in corridors.duplicate():
+		c.t -= dt
+		if c.t <= 0.0:
+			corridors.erase(c)
+			continue
+		c.ping -= dt
+		if c.ping <= 0.0:
+			c.ping = 6.0
+			fx.ring_ping(c.pos, c.r, Color(0.4, 0.9, 1.0, 0.55), 3.0)
+		for o in dyn.query(c.pos, c.r + 4.0):
+			if o is Civilian and o.alive and U.dist2d(o.position, c.pos) < c.r:
+				(o as Unit).flee_to(_corridor_exit(c, o.position), 14.0)
+	# Freiwillige: Wut verwandelt Zivilisten in Kaempfer
+	_recruit_news_t -= dt
+	if Game.running:
+		_recruit_tick(dt)
+
+func _corridor_exit(c: Dictionary, from: Vector3) -> Vector3:
+	var dir: Vector3 = from - c.pos
+	dir.y = 0.0
+	dir = dir.normalized() if dir.length() > 0.5 else Vector3(1, 0, 0)
+	var dest: Vector3 = c.pos + dir * (c.r + 24.0)
+	dest.x = clampf(dest.x, -City.HALF + 6.0, City.HALF - 6.0)
+	dest.z = clampf(dest.z, -City.HALF + 6.0, City.HALF - 6.0)
+	return nav.nearest_free_pos(dest, "foot", 10)
+
+func _recruit_tick(dt: float) -> void:
+	if hubs.is_empty() or Game.alive_hubs() == 0:
+		return
+	if Game.pop_used(U.TEAM_REB) >= Game.pop_cap(U.TEAM_REB) - 2:
+		return
+	for cy in range(dist_n):
+		for cx in range(dist_n):
+			var a := anger[cy * dist_n + cx]
+			if a < 18.0:
+				continue
+			var rate: float = (a - 10.0) / 90.0 * 0.045 * [0.7, 1.0, 1.3][Game.difficulty]
+			if rng.randf() > rate * dt:
+				continue
+			var cen := district_center(Vector2i(cx, cy))
+			var civ: Civilian = null
+			var best := 1e9
+			for o in dyn.query(cen, DIST_CELL * 0.7):
+				if o is Civilian and o.alive and district_of(o.position) == Vector2i(cx, cy):
+					var d := U.dist2d(o.position, cen) + rng.randf() * 20.0
+					if d < best:
+						best = d
+						civ = o
+			if civ == null:
+				continue
+			var p := civ.position
+			unregister(civ)
+			civ.queue_free()
+			var kind := "reb_rpg" if rng.randf() < 0.18 else "reb_fighter"
+			var u := spawn_unit(kind, U.TEAM_REB, p)
+			Game.stats.recruits = int(Game.stats.get("recruits", 0)) + 1
+			Game.log_event("recruit", "Freiwillige schließen sich in %s der Front an" % district_name(Vector2i(cx, cy)), p)
+			if Game.player_team == U.TEAM_REB and not Game.demo_mode and u != null:
+				Game.message("Freiwillige in %s: ein neuer %s schließt sich an" % [district_name(Vector2i(cx, cy)), "RPG-Schütze" if kind == "reb_rpg" else "Kämpfer"], "good", U.TEAM_REB)
+			if _recruit_news_t <= 0.0:
+				_recruit_news_t = 60.0
+				var arr: Array = Data.HEADLINES_VOLUNTEERS
+				Game.news(arr[rng.randi() % arr.size()], "bad" if Game.player_team == U.TEAM_ADF else "good")
+
+## Hilfslieferung angekommen: Wut sinkt, Empoerung ebenfalls
+func aid_delivered(pos: Vector3) -> void:
+	add_anger(pos, -15.0)
+	Game.add_outrage(-1.0, true, "")
+	Game.stats.aid_delivered = int(Game.stats.get("aid_delivered", 0)) + 1
+	fx.dust_cloud(pos, 1.6, Color(0.85, 0.85, 0.8))
+
+## Feldlazarett aufstellen (liefert false, wenn der Platz nicht frei ist)
+func place_field_hospital(pos: Vector3) -> bool:
+	var count := 0
+	for s in structures:
+		if s.alive and s.kind == "adf_fieldhosp":
+			count += 1
+	if count >= 2:
+		return false
+	var p := nav.nearest_free_pos(pos, "veh", 8)
+	# gesamte Flaeche muss frei sein
+	for dx in [-4.0, 0.0, 4.0]:
+		for dz in [-4.0, 0.0, 4.0]:
+			if nav.is_solid_at(p + Vector3(dx, 0, dz), "foot"):
+				return false
+	var st := Structure.new()
+	st.id = _next_id
+	_next_id += 1
+	st.setup_base(self, "adf_fieldhosp", U.TEAM_ADF)
+	st.position = Vector3(p.x, 0.0, p.z)
+	_entities_root.add_child(st)
+	nav.block_rect(st.position.x, st.position.z, st.hx, st.hz, true)
+	_register(st)
+	nav.rebuild_vehicle_all()
+	fx.dust_cloud(st.position, 2.2)
+	return true
+
+# ============================================================================= Tunnelnetz
+func _build_tunnels() -> void:
+	tunnels.clear()
+	if hubs.size() < 2:
+		return
+	# Minimaler Spannbaum (Prim) ...
+	var in_tree: Array = [hubs[0]]
+	var rest: Array = hubs.duplicate()
+	rest.remove_at(0)
+	while not rest.is_empty():
+		var best_a: Structure = null
+		var best_b: Structure = null
+		var bd := 1e9
+		for a in in_tree:
+			for b in rest:
+				var d: float = U.dist2d(a.position, b.position)
+				if d < bd:
+					bd = d
+					best_a = a
+					best_b = b
+		_add_tunnel(best_a, best_b)
+		in_tree.append(best_b)
+		rest.erase(best_b)
+	# ... plus zwei Zusatzverbindungen (Schleifen machen das Netz robust)
+	var extra: Array = []
+	for i in range(hubs.size()):
+		for j in range(i + 1, hubs.size()):
+			if tunnel_between(hubs[i], hubs[j]).is_empty():
+				extra.append([U.dist2d(hubs[i].position, hubs[j].position), hubs[i], hubs[j]])
+	extra.sort_custom(func(x, y): return x[0] < y[0])
+	for k in range(mini(2, extra.size())):
+		if extra[k][0] < 190.0:
+			_add_tunnel(extra[k][1], extra[k][2])
+
+func _add_tunnel(a: Structure, b: Structure) -> void:
+	tunnels.append({"a": a, "b": b, "known": false, "len": U.dist2d(a.position, b.position) * 1.15})
+
+func tunnel_between(a: Structure, b: Structure) -> Dictionary:
+	for t in tunnels:
+		if (t.a == a and t.b == b) or (t.a == b and t.b == a):
+			return t
+	return {}
+
+func tunnel_active(t: Dictionary) -> bool:
+	return is_instance_valid(t.a) and is_instance_valid(t.b) and t.a.alive and t.b.alive
+
+func tunnel_links(h: Structure) -> Array:
+	var out: Array = []
+	for t in tunnels:
+		if (t.a == h or t.b == h) and tunnel_active(t):
+			out.append(t)
+	return out
+
+## Kuerzeste Route ueber aktive Tunnel (Dijkstra). Ergebnis: Array von Structure inkl. Start und Ziel, sonst leer.
+func tunnel_route(from: Structure, to: Structure) -> Array:
+	if from == null or to == null or from == to or not from.alive or not to.alive:
+		return []
+	var dist := {from: 0.0}
+	var prev := {}
+	var open: Array = [from]
+	var done := {}
+	while not open.is_empty():
+		var cur: Structure = open[0]
+		for o in open:
+			if dist[o] < dist[cur]:
+				cur = o
+		open.erase(cur)
+		if done.has(cur):
+			continue
+		done[cur] = true
+		if cur == to:
+			break
+		for t in tunnel_links(cur):
+			var nb: Structure = t.b if t.a == cur else t.a
+			var nd: float = dist[cur] + t.len
+			if not dist.has(nb) or nd < dist[nb]:
+				dist[nb] = nd
+				prev[nb] = cur
+				open.append(nb)
+	if not prev.has(to):
+		return []
+	var route: Array = [to]
+	var c: Structure = to
+	while prev.has(c):
+		c = prev[c]
+		route.push_front(c)
+	return route
+
+func route_length(route: Array) -> float:
+	var l := 0.0
+	for i in range(route.size() - 1):
+		var t := tunnel_between(route[i], route[i + 1])
+		l += t.len if not t.is_empty() else U.dist2d(route[i].position, route[i + 1].position)
+	return l
+
+## Verbindung fuer die Armee sichtbar machen; beide Knoten gelten dann als entdeckt.
+func reveal_tunnel(t: Dictionary) -> int:
+	var newly := 0
+	if not t.known:
+		t.known = true
+	for h in [t.a, t.b]:
+		if h.alive and not h.revealed:
+			h.revealed = true
+			h.ident_mask |= 1
+			newly += 1
+	return newly
+
+## Anzahl der Einheiten im Tunnel (alle Teams) – fuer Anzeige
+func units_in_tunnels(team: int) -> int:
+	var n := 0
+	for u in units:
+		if u.alive and u.team == team and u.tunnel_t > 0.0:
+			n += 1
+	return n
 
 # ============================================================================= Spawns
 func spawn_unit(kind: String, team: int, pos: Vector3) -> Unit:
@@ -253,7 +535,7 @@ func _civ_tick() -> void:
 	if count < civ_cap:
 		for i in range(3):
 			var s := random_building()
-			if s != null and s.occupants > 1 and not s.warned:
+			if s != null and s.occupants > 1 and not s.warned and not in_corridor(s.position):
 				s.occupants -= 1
 				release_civilian(s, false)
 				break
@@ -309,6 +591,10 @@ func _process(dt: float) -> void:
 	if _civ_t <= 0.0:
 		_civ_t = 4.0
 		_civ_tick()
+	_anger_t -= dt
+	if _anger_t <= 0.0:
+		_anger_t = 1.0
+		_district_tick(1.0)
 	_tod_t -= dt
 	if _tod_t <= 0.0:
 		_tod_t = 1.0
@@ -708,7 +994,7 @@ func resolve_check(checker: Unit, t: Unit) -> void:
 	else:
 		Game.message("Kontrolle: Zivilist, keine Gefahr", "info", U.TEAM_ADF)
 		# Schikane: kleine Empörung
-		Game.add_outrage(0.2)
+		Game.add_outrage(0.2, false, "check")
 		if t is Civilian:
 			(t as Civilian).panic_from(checker.position, 3.0)
 
@@ -724,8 +1010,9 @@ func enforce_no_fly_zone() -> void:
 			# Luftfahrzeuge werden abgezogen: fliegen vom Spielfeld
 			u.cmd_stop()
 			u.order_type = "move"
-			u.order_pos = Vector3(-130, 0, 130)
-			u.path = PackedVector3Array([Vector3(-130, 0, 130)])
+			var exit_p := Vector3(-City.HALF - 60.0, 0, City.HALF + 60.0)
+			u.order_pos = exit_p
+			u.path = PackedVector3Array([exit_p])
 			u.path_i = 0
 			u.set_meta("leaving", true)
 			u.spd *= 1.6

@@ -572,130 +572,228 @@ static func _arty(root: Node3D, parts: Dictionary, team: int) -> void:
 	parts["barrel"] = barrel
 	parts["muzzle"] = _marker(barrel, Vector3(0, 0, 5.8), "Muzzle")
 
+static func _missile(mb: MeshBuilder, base: Vector3, length: float, r: float, body: Color, tip: Color, fin: Color) -> void:
+	mb.cyl(base + Vector3(0, 0, length * 0.5), r, r, length, body, 8, 2)
+	mb.cyl(base + Vector3(0, 0, length + 0.09), r, 0.0, 0.18, tip, 8, 2)
+	for k in range(4):
+		var a := TAU * k / 4.0 + PI * 0.25
+		mb.box_t(base + Vector3(cos(a) * r * 1.5, sin(a) * r * 1.5, length * 0.12), Vector3(0.015 + absf(cos(a)) * 0.2, 0.015 + absf(sin(a)) * 0.2, 0.2), fin)
+
 static func _drone(root: Node3D, parts: Dictionary, team: int) -> void:
-	var grey := Color(0.8, 0.82, 0.84)
+	var grey := Color(0.78, 0.8, 0.82)
 	var tc := U.team_color(team)
 	var dark := Color(0.1, 0.1, 0.12)
+	var steel := Color(0.3, 0.32, 0.34)
 	var mb := MeshBuilder.new()
 	mb.jitter = 0.02
-	mb.cyl(Vector3(0, 0, 0.2), 0.34, 0.12, 3.0, grey, 12, 2)
-	mb.cyl(Vector3(0, 0, -0.9), 0.3, 0.34, 1.1, grey * 0.95, 12, 2)
-	mb.sphere(Vector3(0, 0, 1.75), 0.34, grey * 0.9, Vector3(0.9, 0.9, 1.15), 6, 12)
-	mb.sphere(Vector3(0, 0.3, 0.3), 0.3, Color(0.2, 0.25, 0.3), Vector3(1.0, 0.7, 2.0), 5, 10, true)  # Satelliten-Kuppel
-	mb.box(Vector3(0, 0, -0.1), Vector3(5.8, 0.07, 0.7), grey)                           # Fluegel
-	mb.box(Vector3(0, 0.02, -0.18), Vector3(5.8, 0.05, 0.22), grey * 0.85)
-	for sx in [-1, 1]:
-		mb.box_t(Vector3(sx * 2.8, 0.18, -0.25), Vector3(0.05, 0.38, 0.4), grey, Vector3(0, 0, sx * 10.0))   # Winglets
-		mb.box(Vector3(sx * 1.2, -0.2, 0.0), Vector3(0.06, 0.2, 0.5), dark)                                 # Pylon
-		mb.cyl(Vector3(sx * 1.2, -0.38, 0.1), 0.08, 0.08, 0.9, Color(0.3, 0.32, 0.28), 8, 2)                # Lenkflugkoerper
-		mb.cyl(Vector3(sx * 1.2, -0.38, 0.6), 0.08, 0.0, 0.2, Color(0.5, 0.2, 0.1), 8, 2)
-		mb.box_t(Vector3(sx * 0.55, 0.32, -1.5), Vector3(0.05, 0.7, 0.55), grey, Vector3(0, 0, sx * 28.0))  # V-Leitwerk
-		mb.box(Vector3(sx * 2.58, 0.0, -0.1), Vector3(0.5, 0.08, 0.72), tc)
-	mb.sphere(Vector3(0, -0.3, 1.0), 0.2, dark, Vector3(1, 1, 1), 5, 10)                 # Sensorkugel
-	mb.cyl(Vector3(0, -0.3, 1.0), 0.07, 0.07, 0.3, Color(0.2, 0.4, 0.8), 8, 2)
-	mb.box(Vector3(0, -0.34, -0.2), Vector3(0.2, 0.1, 0.6), dark)
-	mb.cyl(Vector3(0, 0.0, -1.5), 0.09, 0.09, 0.3, dark, 8, 2)                           # Nabe
+	mb.ao_strength = 0.1
+	# Rumpf: kantige Loft-Segmente (Nase -> Mittelteil -> Heck)
+	mb.loft(Vector3(0, 0.02, -1.6), Vector2(0.58, 0.6), Vector3(0, 0.08, 0.9), Vector2(0.68, 0.7), grey)
+	mb.loft(Vector3(0, 0.08, 0.9), Vector2(0.68, 0.7), Vector3(0, 0.0, 1.55), Vector2(0.52, 0.55), grey * 0.97)
+	mb.loft(Vector3(0, 0.0, 1.55), Vector2(0.52, 0.55), Vector3(0, -0.1, 2.0), Vector2(0.22, 0.3), grey * 0.9)
+	mb.loft(Vector3(0, 0.02, -1.6), Vector2(0.58, 0.6), Vector3(0, 0.1, -3.5), Vector2(0.14, 0.2), grey * 0.95)
+	# Rueckenhoecker, Lufteinlass und Satelliten-Kuppel
+	mb.loft(Vector3(0, 0.38, -0.2), Vector2(0.5, 0.18), Vector3(0, 0.42, 0.8), Vector2(0.46, 0.2), grey * 1.02)
+	mb.sphere(Vector3(0, 0.46, 0.35), 0.3, Color(0.88, 0.89, 0.9), Vector3(1.0, 0.6, 1.5), 4, 10, true)
+	mb.box(Vector3(0, 0.34, -2.0), Vector3(0.22, 0.2, 0.5), dark)
+	mb.box(Vector3(0, 0.45, -2.1), Vector3(0.08, 0.2, 0.4), grey)
+	# Tragflaechen: gepfeilt und verjuengt, mit Winglets
+	for sx in [-1.0, 1.0]:
+		mb.extrude([Vector2(sx * 0.28, 0.55), Vector2(sx * 4.9, -0.2), Vector2(sx * 4.9, -0.52), Vector2(sx * 0.28, -0.5)], -0.04, 0.05, grey, grey * 1.05)
+		mb.box_t(Vector3(sx * 4.95, 0.2, -0.38), Vector3(0.04, 0.5, 0.36), grey * 0.95, Vector3(0, sx * 12.0, sx * 8.0))
+		mb.box(Vector3(sx * 4.92, 0.0, -0.36), Vector3(0.14, 0.07, 0.4), tc)                       # Randbogen-Markierung
+		mb.box(Vector3(sx * 2.2, 0.06, -0.52), Vector3(3.8, 0.03, 0.16), steel)                    # Klappen
+	# Hardpoints: Pylone, Lenkflugkoerper, Praezisionsbomben
+	for sx in [-1.0, 1.0]:
+		for k in range(2):
+			var x: float = sx * (1.2 + k * 1.15)
+			mb.box(Vector3(x, -0.12, 0.05), Vector3(0.06, 0.22, 0.5), dark)
+			if k == 0:
+				mb.cyl(Vector3(x, -0.34, 0.05), 0.12, 0.12, 1.2, Color(0.35, 0.37, 0.33), 8, 2)       # Bombe
+				mb.cyl(Vector3(x, -0.34, 0.75), 0.12, 0.03, 0.3, Color(0.35, 0.37, 0.33), 8, 2)
+				mb.box(Vector3(x, -0.34, -0.5), Vector3(0.3, 0.02, 0.2), dark)
+				mb.box(Vector3(x, -0.34, -0.5), Vector3(0.02, 0.3, 0.2), dark)
+			else:
+				_missile(mb, Vector3(x, -0.3, -0.4), 1.2, 0.07, Color(0.3, 0.32, 0.28), Color(0.55, 0.22, 0.1), dark)
+	# Leitwerk: umgekehrtes V
+	for sx in [-1.0, 1.0]:
+		mb.box_t(Vector3(sx * 0.5, -0.2, -3.2), Vector3(0.05, 1.1, 0.62), grey, Vector3(0, 0, sx * 38.0))
+		mb.box_t(Vector3(sx * 0.9, -0.62, -3.3), Vector3(0.05, 0.2, 0.34), tc, Vector3(0, 0, sx * 38.0))
+	mb.box(Vector3(0, 0.34, -3.3), Vector3(0.05, 0.5, 0.55), grey * 0.95)                          # Rueckenflosse
+	# Sensorkugel unter der Nase (EO/IR) und Laserzielgeraet
+	mb.sphere(Vector3(0, -0.34, 1.35), 0.24, dark, Vector3.ONE, 5, 10)
+	mb.cyl(Vector3(0, -0.34, 1.52), 0.09, 0.09, 0.12, Color(0.2, 0.45, 0.85), 8, 2)
+	mb.box(Vector3(0, -0.22, 1.3), Vector3(0.3, 0.12, 0.5), dark)
+	# Fahrwerk (Bugrad + zwei Hauptfahrwerke)
+	mb.beam(Vector3(0, -0.15, 1.3), Vector3(0, -0.9, 1.3), 0.05, dark)
+	mb.wheel(Vector3(0, -0.95, 1.3), 0.14, 0.1, dark, steel, 8)
+	for sx in [-1.0, 1.0]:
+		mb.beam(Vector3(sx * 0.3, -0.1, -0.7), Vector3(sx * 0.42, -0.9, -0.75), 0.05, dark)
+		mb.wheel(Vector3(sx * 0.45, -0.95, -0.75), 0.15, 0.1, dark, steel, 8)
+	# Antennen und Beleuchtung
+	mb.cyl(Vector3(0.1, 0.62, -0.9), 0.012, 0.01, 0.5, dark, 4)
+	mb.box(Vector3(0, 0.55, 1.2), Vector3(0.05, 0.1, 0.25), steel)
+	mb.box(Vector3(0, 0.1, -3.62), Vector3(0.12, 0.12, 0.2), steel)                                # Propellernabe-Gehaeuse
 	var holder := Node3D.new()
 	holder.scale = Vector3(1.2, 1.2, 1.2)
 	root.add_child(holder)
 	_mi(holder, mb, 0.5, 0.3)
 	var prop := Node3D.new()
-	prop.position = Vector3(0, 0, -1.7)
+	prop.position = Vector3(0, 0.1, -3.78)
 	holder.add_child(prop)
 	var pb := MeshBuilder.new()
-	pb.box(Vector3(0, 0, 0), Vector3(0.05, 1.3, 0.06), Color(0.1, 0.1, 0.1))
-	pb.box(Vector3(0, 0, 0), Vector3(1.3, 0.05, 0.06), Color(0.1, 0.1, 0.1))
+	for i in range(3):
+		pb.box_t(Vector3(0, 0, 0), Vector3(0.1, 0.9, 0.025), Color(0.08, 0.08, 0.09), Vector3(0, 0, i * 120.0))
+	pb.cyl(Vector3(0, 0, 0.02), 0.09, 0.09, 0.1, steel, 8, 2)
 	_mi(prop, pb, 0.6, 0.0)
 	parts["rotor"] = prop
 	parts["rotor_axis"] = 2
-	parts["muzzle"] = _marker(holder, Vector3(0, -0.3, 1.0), "Muzzle")
+	parts["muzzle"] = _marker(holder, Vector3(0, -0.34, 1.35), "Muzzle")
 
 static func _viper(root: Node3D, parts: Dictionary, team: int) -> void:
-	var grey := Color(0.36, 0.4, 0.42)
-	var dark := Color(0.12, 0.12, 0.14)
+	var body := Color(0.38, 0.41, 0.4)
+	var dark := Color(0.1, 0.1, 0.12)
 	var steel := Color(0.3, 0.3, 0.32)
 	var tc := U.team_color(team)
-	var glass := Color(0.1, 0.16, 0.2)
+	var glass := Color(0.08, 0.15, 0.2)
+	var olive := Color(0.24, 0.27, 0.22)
 	var mb := MeshBuilder.new()
-	mb.ao_strength = 0.15
+	mb.ao_strength = 0.12
 	mb.jitter = 0.025
-	mb.sphere(Vector3(0, 0, 0.2), 1.05, grey, Vector3(0.95, 0.95, 2.1), 8, 14)             # Rumpf
-	mb.sphere(Vector3(0, 0.45, 1.4), 0.7, glass, Vector3(0.85, 0.75, 1.3), 7, 12)           # vordere Kanzel
-	mb.sphere(Vector3(0, 0.72, 0.4), 0.62, glass, Vector3(0.8, 0.7, 1.15), 7, 12)           # hintere Kanzel
-	for i in range(3):                                                                      # Kanzelrahmen
-		mb.beam(Vector3(-0.55, 0.4, 0.9 + i * 0.5), Vector3(0.55, 0.4, 0.9 + i * 0.5), 0.05, grey * 0.8)
-	mb.cyl(Vector3(0, 0.25, -3.6), 0.36, 0.14, 4.6, grey, 10, 2)                           # Heckausleger
-	mb.box(Vector3(0, 0.92, -5.6), Vector3(0.09, 1.4, 1.0), grey * 1.1)                     # Seitenleitwerk
-	mb.box_t(Vector3(0, 0.36, -5.5), Vector3(1.9, 0.07, 0.55), grey, Vector3(-6, 0, 0))    # Hoehenleitwerk
-	mb.box_t(Vector3(0, 1.55, -5.8), Vector3(0.1, 0.32, 0.5), tc, Vector3(0, 0, 0))
-	mb.box(Vector3(0, 1.0, 0.0), Vector3(0.8, 0.5, 1.5), grey * 0.9)                        # Getriebe
-	mb.cyl(Vector3(0, 1.3, 0.0), 0.1, 0.1, 0.3, steel, 8)                                    # Rotormast
-	for sx in [-1.0, 1.0]:                                                                  # Triebwerksgondeln
-		mb.cyl(Vector3(sx * 0.55, 0.85, -0.9), 0.3, 0.26, 1.8, grey * 0.85, 10, 2)
-		mb.cyl(Vector3(sx * 0.55, 0.85, -1.85), 0.24, 0.3, 0.2, dark, 10, 2)                 # Abgasduese
-	# Stummelfluegel, Pylone, Raketenbehaelter, Raketen
-	mb.box(Vector3(0, 0.0, 0.1), Vector3(4.4, 0.1, 0.9), grey * 0.9)
-	for sx in [-1.9, -1.2, 1.2, 1.9]:
-		mb.box(Vector3(sx, -0.12, 0.3), Vector3(0.08, 0.2, 0.5), dark)
-		mb.cyl(Vector3(sx, -0.3, 0.45), 0.22, 0.22, 1.3, Color(0.2, 0.22, 0.2), 10, 2)
-		for k in range(4):
-			var a := TAU * k / 4.0 + 0.4
-			mb.cyl(Vector3(sx + cos(a) * 0.09, -0.3 + sin(a) * 0.09, 1.1), 0.04, 0.0, 0.2, Color(0.55, 0.25, 0.12), 6, 2)
-	mb.box(Vector3(0, -0.62, 1.5), Vector3(0.3, 0.3, 0.55), dark)                           # Kinnturm
-	mb.cyl(Vector3(0, -0.62, 2.1), 0.045, 0.04, 0.8, steel, 6, 2)
-	mb.sphere(Vector3(0, -0.3, 2.3), 0.22, dark, Vector3(1, 1, 1), 5, 10)                   # Sensor-Nase
-	mb.cyl(Vector3(0, -0.3, 2.45), 0.08, 0.08, 0.1, Color(0.2, 0.4, 0.8), 8, 2)
-	# Fahrwerk
+	# --- Rumpf: schmaler, kantiger Tandem-Rumpf aus Loft-Segmenten
+	mb.loft(Vector3(0, 0.1, -2.4), Vector2(0.95, 0.95), Vector3(0, 0.1, 1.7), Vector2(0.88, 0.82), body)
+	mb.loft(Vector3(0, 0.05, 1.7), Vector2(0.88, 0.82), Vector3(0, -0.12, 2.6), Vector2(0.34, 0.46), body * 0.96)
+	mb.loft(Vector3(0, -0.32, -1.6), Vector2(0.7, 0.2), Vector3(0, -0.4, 1.6), Vector2(0.62, 0.2), olive)        # Kiel
+	for sx in [-1.0, 1.0]:
+		# Seitliche Geraeteschaechte (Sponsons) und Cockpitwangen
+		mb.loft(Vector3(sx * 0.62, 0.12, 0.0), Vector2(0.34, 0.55), Vector3(sx * 0.56, 0.08, 1.95), Vector2(0.26, 0.42), body * 0.94)
+		mb.loft(Vector3(sx * 0.46, 0.62, 0.45), Vector2(0.18, 0.3), Vector3(sx * 0.4, 0.55, 1.5), Vector2(0.16, 0.2), olive)
+		# Triebwerksgondeln mit Einlass und IR-Duese
+		mb.loft(Vector3(sx * 0.66, 0.95, -2.7), Vector2(0.55, 0.62), Vector3(sx * 0.64, 0.92, 0.45), Vector2(0.62, 0.64), body * 0.9)
+		mb.box(Vector3(sx * 0.64, 0.9, 0.5), Vector3(0.46, 0.46, 0.08), dark)
+		mb.loft(Vector3(sx * 0.68, 0.96, -2.7), Vector2(0.5, 0.55), Vector3(sx * 0.62, 1.0, -3.5), Vector2(0.28, 0.3), steel)
+		mb.box(Vector3(sx * 0.62, 1.0, -3.52), Vector3(0.22, 0.22, 0.06), dark)
+		for k in range(3):
+			mb.box(Vector3(sx * 0.66, 1.27, -0.4 - k * 0.5), Vector3(0.4, 0.04, 0.2), dark)               # Kuehlschlitze
+	mb.loft(Vector3(0, 0.62, -2.5), Vector2(0.8, 0.45), Vector3(0, 0.6, 0.2), Vector2(0.8, 0.4), body * 1.02)   # Oberdeck
+	# --- Cockpits: Schuetze vorn (tief), Pilot hinten (hoch), kantige Scheiben
+	mb.prism_x([Vector2(2.1, 0.2), Vector2(1.5, 0.92), Vector2(0.95, 0.92), Vector2(0.95, 0.42), Vector2(1.95, 0.42)], -0.3, 0.3, glass, Color(0.2, 0.24, 0.26))
+	mb.prism_x([Vector2(0.85, 0.45), Vector2(0.42, 1.22), Vector2(-0.35, 1.22), Vector2(-0.8, 0.72), Vector2(-0.8, 0.45)], -0.32, 0.32, glass, Color(0.2, 0.24, 0.26))
+	for sx in [-0.3, 0.3]:
+		mb.beam(Vector3(sx, 0.42, 1.95), Vector3(sx, 0.92, 1.5), 0.04, body * 0.8)
+		mb.beam(Vector3(sx, 0.92, 1.5), Vector3(sx, 0.92, 0.95), 0.04, body * 0.8)
+		mb.beam(Vector3(sx * 1.05, 0.45, 0.85), Vector3(sx * 1.05, 1.22, 0.42), 0.045, body * 0.8)
+		mb.beam(Vector3(sx * 1.05, 1.22, 0.42), Vector3(sx * 1.05, 1.22, -0.35), 0.045, body * 0.8)
+		mb.beam(Vector3(sx * 1.05, 1.22, -0.35), Vector3(sx * 1.05, 0.72, -0.8), 0.045, body * 0.8)
+	mb.beam(Vector3(-0.3, 0.92, 1.2), Vector3(0.3, 0.92, 1.2), 0.04, body * 0.8)
+	# --- Rotorkopf: Mastverkleidung, Mast, Nabe
+	mb.loft(Vector3(0, 1.0, -0.4), Vector2(0.5, 0.3), Vector3(0, 1.25, 0.2), Vector2(0.3, 0.3), body * 1.05)
+	mb.cyl(Vector3(0, 1.42, 0), 0.11, 0.09, 0.3, steel, 8)
+	# --- Heckausleger, Rueckenkamm, Leitwerk
+	mb.loft(Vector3(0, 0.8, -2.5), Vector2(0.66, 0.6), Vector3(0, 0.9, -5.5), Vector2(0.24, 0.34), body * 0.98)
+	mb.loft(Vector3(0, 1.1, -2.5), Vector2(0.2, 0.12), Vector3(0, 1.1, -5.3), Vector2(0.1, 0.08), olive)
+	mb.prism_x([Vector2(-4.7, 0.95), Vector2(-5.75, 2.2), Vector2(-6.25, 2.2), Vector2(-6.05, 0.95)], -0.05, 0.05, body * 1.05)
+	mb.box(Vector3(0.0, 2.25, -6.05), Vector3(0.14, 0.12, 0.5), dark)                              # Positionslicht-Traeger
+	mb.box(Vector3(0, 1.55, -5.95), Vector3(0.11, 0.32, 0.4), tc)                                  # Kennzeichnung
+	mb.prism_x([Vector2(-5.2, 0.72), Vector2(-5.85, 0.2), Vector2(-6.15, 0.2), Vector2(-6.0, 0.72)], -0.04, 0.04, body * 0.92)
+	mb.box(Vector3(0, 0.98, -5.45), Vector3(2.6, 0.07, 0.6), body)                                 # Hoehenleitwerk
+	mb.box(Vector3(-1.3, 1.05, -5.45), Vector3(0.05, 0.22, 0.6), body * 0.9)
+	mb.box(Vector3(1.3, 1.05, -5.45), Vector3(0.05, 0.22, 0.6), body * 0.9)
+	mb.box(Vector3(0.16, 0.8, -6.15), Vector3(0.1, 0.18, 0.3), steel)                              # Heckrotor-Getriebe
+	for sx in [-1.0, 1.0]:
+		mb.box(Vector3(sx * 0.36, 0.84, -3.4), Vector3(0.05, 0.16, 0.5), dark)                       # Flare-Werfer
+	# --- Stummelfluegel mit Pylonen, Raketenbehaeltern und Hellfire-Gestellen
+	mb.box(Vector3(0, 0.05, 0.35), Vector3(4.7, 0.1, 0.85), body * 0.9)
+	mb.box(Vector3(0, 0.12, 0.35), Vector3(4.7, 0.03, 0.2), steel)
+	for sx in [-1.0, 1.0]:
+		mb.box_t(Vector3(sx * 2.35, 0.05, 0.35), Vector3(0.12, 0.12, 0.85), body, Vector3(0, 0, 0))
+		var xi: float = sx * 1.15
+		var xo: float = sx * 2.0
+		mb.box(Vector3(xi, -0.12, 0.35), Vector3(0.08, 0.26, 0.6), dark)
+		mb.box(Vector3(xo, -0.12, 0.35), Vector3(0.08, 0.26, 0.6), dark)
+		# Raketenbehaelter (19 Rohre)
+		mb.cyl(Vector3(xi, -0.38, 0.5), 0.23, 0.23, 1.4, olive, 8, 2)
+		mb.cyl(Vector3(xi, -0.38, 1.22), 0.23, 0.2, 0.06, dark, 8, 2)
+		for k in range(6):
+			var a := TAU * k / 6.0
+			mb.cyl(Vector3(xi + cos(a) * 0.12, -0.38 + sin(a) * 0.12, 1.26), 0.035, 0.035, 0.04, Color(0.55, 0.28, 0.12), 6, 2)
+		mb.cyl(Vector3(xi, -0.38, 1.26), 0.035, 0.035, 0.04, Color(0.55, 0.28, 0.12), 6, 2)
+		# Hellfire-Gestell: 2 Lenkwaffen je Seite
+		mb.box(Vector3(xo, -0.3, 0.45), Vector3(0.12, 0.1, 1.1), steel)
+		for k in [-1.0, 1.0]:
+			_missile(mb, Vector3(xo + k * 0.13, -0.42, -0.05), 1.55, 0.065, Color(0.26, 0.29, 0.25), Color(0.5, 0.2, 0.1), dark)
+		mb.box(Vector3(sx * 2.38, 0.05, 0.35), Vector3(0.05, 0.14, 0.85), tc)                         # Fluegelspitzen-Markierung
+	# --- Bug: Zielerfassungsturm (TADS/PNVS) und Maschinenkanone
+	mb.loft(Vector3(0, 0.12, 2.35), Vector2(0.5, 0.44), Vector3(0, 0.04, 2.85), Vector2(0.42, 0.36), dark)
+	mb.box(Vector3(0, 0.08, 2.88), Vector3(0.3, 0.22, 0.04), glass)
+	mb.cyl(Vector3(0.13, 0.08, 2.9), 0.07, 0.07, 0.06, Color(0.2, 0.45, 0.85), 8, 2)
+	mb.box(Vector3(0, 0.36, 2.3), Vector3(0.26, 0.22, 0.34), dark)                                 # PNVS
+	mb.box(Vector3(0, -0.52, 1.4), Vector3(0.34, 0.3, 0.7), dark)                                   # Kinnturm
+	mb.cyl(Vector3(0, -0.56, 2.05), 0.035, 0.03, 1.0, steel, 6, 2)
+	mb.cyl(Vector3(0, -0.56, 2.6), 0.06, 0.06, 0.12, dark, 6, 2)
+	# --- Fahrwerk: Hauptfahrwerk + Spornrad
 	for sx in [-1, 1]:
-		mb.beam(Vector3(sx * 0.7, -0.6, 0.9), Vector3(sx * 0.9, -1.2, 0.9), 0.08, dark)
-		mb.wheel(Vector3(sx * 1.0, -1.25, 0.9), 0.2, 0.14, dark, steel, 8)
-	mb.beam(Vector3(0, -0.8, -3.8), Vector3(0, -1.2, -3.8), 0.07, dark)
-	mb.box(Vector3(1.05, 0.15, 0.2), Vector3(0.05, 0.3, 1.0), tc)
-	mb.box(Vector3(-1.05, 0.15, 0.2), Vector3(0.05, 0.3, 1.0), tc)
-	mb.box(Vector3(0, 1.1, 0.8), Vector3(0.14, 0.2, 0.3), dark)                              # Sensorstift
-	mb.cyl(Vector3(0, 0.55, -2.2), 0.02, 0.01, 0.7, dark, 4)
+		mb.beam(Vector3(sx * 0.6, -0.3, 0.7), Vector3(sx * 0.95, -1.15, 0.95), 0.08, dark)
+		mb.beam(Vector3(sx * 0.62, -0.3, 0.3), Vector3(sx * 0.95, -1.1, 0.95), 0.05, dark)
+		mb.wheel(Vector3(sx * 1.0, -1.2, 0.95), 0.2, 0.14, dark, steel, 8)
+	mb.beam(Vector3(0, 0.55, -4.6), Vector3(0, -0.2, -5.0), 0.07, dark)
+	mb.wheel(Vector3(0, -0.3, -5.0), 0.14, 0.1, dark, steel, 8)
+	# --- Antennen, Drahtschneider, Lichter
+	mb.cyl(Vector3(0, 0.62, -2.2), 0.015, 0.008, 0.7, dark, 4)
+	mb.box(Vector3(0, 1.2, -3.8), Vector3(0.04, 0.16, 0.34), steel)
+	mb.box(Vector3(0, -0.46, -2.6), Vector3(0.04, 0.2, 0.34), steel)
+	mb.box(Vector3(0, 1.0, 0.0), Vector3(0.04, 0.2, 0.5), dark)
+	mb.box(Vector3(0, 1.55, -0.55), Vector3(0.1, 0.1, 0.12), Color(0.8, 0.12, 0.1))
+	for sx in [-1, 1]:
+		mb.box(Vector3(sx * 0.9, 0.1, 0.55), Vector3(0.08, 0.1, 0.1), Color(0.9, 0.2, 0.15) if sx < 0 else Color(0.2, 0.8, 0.3))
 	var holder := Node3D.new()
 	holder.scale = Vector3(1.05, 1.05, 1.05)
 	root.add_child(holder)
 	_mi(holder, mb, 0.45, 0.35)
 	var rot := Node3D.new()
-	rot.position = Vector3(0, 1.5, 0)
+	rot.position = Vector3(0, 1.62, 0)
 	holder.add_child(rot)
 	var rb := MeshBuilder.new()
+	# vier verjuengte Rotorblaetter mit Blattwurzel und farbiger Spitze
 	for i in range(4):
-		rb.box_t(Vector3(0, 0, 0), Vector3(9.0, 0.04, 0.34), Color(0.1, 0.1, 0.1), Vector3(0, i * 45.0, 0))
-	rb.cyl(Vector3(0, -0.05, 0), 0.25, 0.25, 0.18, steel, 10)
-	for i in range(4):
-		var a := i * PI * 0.5
-		rb.box_t(Vector3(cos(a) * 4.3, 0, sin(a) * 4.3), Vector3(0.1, 0.05, 0.36), tc, Vector3(0, -rad_to_deg(a), 0))
+		rb.set_xf(Vector3.ZERO, Vector3(0, i * 90.0, 0))
+		rb.box(Vector3(0.95, 0.0, 0.0), Vector3(1.0, 0.045, 0.42), Color(0.16, 0.16, 0.17))
+		rb.box(Vector3(2.4, 0.0, 0.0), Vector3(2.0, 0.035, 0.34), Color(0.1, 0.1, 0.11))
+		rb.box(Vector3(3.85, 0.0, 0.0), Vector3(1.0, 0.03, 0.3), Color(0.1, 0.1, 0.11))
+		rb.box(Vector3(4.4, 0.0, 0.0), Vector3(0.2, 0.035, 0.3), tc)
+		rb.box(Vector3(0.55, -0.05, 0.0), Vector3(0.3, 0.1, 0.34), steel)                             # Blattgriff
+	rb.reset_xf()
+	rb.cyl(Vector3(0, -0.06, 0), 0.26, 0.26, 0.14, steel, 8)
+	rb.cyl(Vector3(0, 0.05, 0), 0.14, 0.1, 0.12, dark, 8)
 	_mi(rot, rb, 0.6, 0.0)
 	var disc := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = 4.4
-	cm.bottom_radius = 4.4
+	cm.top_radius = 4.45
+	cm.bottom_radius = 4.45
 	cm.height = 0.02
 	cm.radial_segments = 24
 	disc.mesh = cm
 	var dm := StandardMaterial3D.new()
 	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dm.albedo_color = Color(0.3, 0.3, 0.3, 0.12)
+	dm.albedo_color = Color(0.3, 0.3, 0.3, 0.1)
 	disc.material_override = dm
 	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	holder.add_child(disc)
-	disc.position = Vector3(0, 1.5, 0)
+	disc.position = Vector3(0, 1.62, 0)
 	var trot := Node3D.new()
-	trot.position = Vector3(0.3, 0.9, -5.55)
+	trot.position = Vector3(0.24, 0.8, -6.15)
 	holder.add_child(trot)
 	var tb := MeshBuilder.new()
-	tb.box(Vector3.ZERO, Vector3(0.04, 1.4, 0.06), Color(0.1, 0.1, 0.1))
-	tb.box(Vector3.ZERO, Vector3(0.04, 0.06, 1.4), Color(0.1, 0.1, 0.1))
+	for i in range(2):
+		tb.box_t(Vector3.ZERO, Vector3(0.035, 1.5, 0.12), Color(0.1, 0.1, 0.1), Vector3(i * 90.0, 0, 0))
+	tb.cyl(Vector3.ZERO, 0.07, 0.07, 0.12, steel, 6, 1)
 	_mi(trot, tb, 0.6, 0.0)
 	parts["rotor"] = rot
 	parts["rotor2"] = trot
 	parts["rotor_axis"] = 0
-	parts["muzzle"] = _marker(holder, Vector3(0, -0.62, 2.5), "Muzzle")
-	parts["muzzle2"] = _marker(holder, Vector3(1.9, -0.3, 1.2), "Muzzle2")
+	parts["muzzle"] = _marker(holder, Vector3(0, -0.56, 2.7), "Muzzle")
+	parts["muzzle2"] = _marker(holder, Vector3(2.0, -0.42, 1.5), "Muzzle2")
 
 static func _technical(root: Node3D, parts: Dictionary, team: int) -> void:
 	var body_c := Color(0.82, 0.78, 0.68)
@@ -810,6 +908,82 @@ static func _civ_truck(root: Node3D, parts: Dictionary, variant: int) -> void:
 	_mi(root, mb, 0.8, 0.1)
 	parts["muzzle"] = _marker(root, Vector3(0, 1.8, 0), "Muzzle")
 
+static func _aid_truck(root: Node3D, parts: Dictionary, team: int) -> void:
+	var white := Color(0.92, 0.92, 0.9)
+	var blue := Color(0.18, 0.4, 0.72)
+	var dark := Color(0.1, 0.1, 0.1)
+	var steel := Color(0.28, 0.28, 0.3)
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.3
+	mb.ao_floor = 0.3
+	mb.jitter = 0.03
+	mb.box(Vector3(0, 0.8, 0), Vector3(1.6, 0.2, 6.4), steel)
+	mb.box(Vector3(0, 1.0, 0), Vector3(2.3, 0.25, 6.2), Color(0.25, 0.25, 0.27))
+	mb.loft(Vector3(0, 1.55, 1.2), Vector2(2.2, 1.3), Vector3(0, 1.75, 3.0), Vector2(2.2, 1.7), white)      # Kabine
+	mb.box(Vector3(0, 1.25, 3.2), Vector3(2.1, 0.7, 0.9), white * 0.96)
+	mb.box(Vector3(0, 1.4, 3.66), Vector3(1.9, 0.5, 0.08), dark)
+	_lamp(mb, Vector3(-0.8, 1.35, 3.7), 0.26)
+	_lamp(mb, Vector3(0.8, 1.35, 3.7), 0.26)
+	mb.box(Vector3(0, 2.05, 2.95), Vector3(2.0, 0.6, 0.06), Color(0.1, 0.14, 0.17))
+	for sx in [-1, 1]:
+		mb.box(Vector3(sx * 1.12, 2.0, 2.4), Vector3(0.05, 0.5, 1.0), Color(0.1, 0.14, 0.17))
+		mb.box(Vector3(sx * 1.25, 1.9, 3.05), Vector3(0.16, 0.34, 0.14), dark)
+	mb.box(Vector3(0, 2.62, 2.35), Vector3(2.0, 0.1, 1.5), white * 1.02)
+	# Planenaufbau mit blauem Band und Kreuz
+	mb.box(Vector3(0, 2.25, -1.0), Vector3(2.35, 2.0, 4.0), white)
+	mb.box(Vector3(0, 3.3, -1.0), Vector3(2.15, 0.14, 3.8), white * 0.96)
+	mb.box(Vector3(0, 1.6, -1.0), Vector3(2.4, 0.3, 4.05), blue)
+	for sx in [-1.0, 1.0]:
+		mb.box(Vector3(sx * 1.19, 2.45, -1.0), Vector3(0.04, 1.0, 0.18), blue)
+		mb.box(Vector3(sx * 1.19, 2.45, -1.0), Vector3(0.04, 0.18, 1.0), blue)
+	mb.box(Vector3(0, 2.25, -3.02), Vector3(2.0, 1.8, 0.06), white * 0.9)
+	# Kisten auf der Ladefläche
+	for i in range(3):
+		mb.box(Vector3(-0.5 + i * 0.5, 3.45, -1.4 + (i % 2) * 0.6), Vector3(0.4, 0.3, 0.5), Color(0.55, 0.42, 0.25))
+	for sx in [-1.2, 1.2]:
+		for z in [-2.1, 0.0, 2.3]:
+			mb.wheel(Vector3(sx, 0.62, z), 0.62, 0.46, dark, steel, 14)
+	mb.box(Vector3(0, 1.1, -3.2), Vector3(2.3, 0.2, 0.1), Color(0.8, 0.2, 0.15))
+	mb.box(Vector3(0, 3.5, 2.0), Vector3(0.04, 0.2, 0.7), U.team_color(team))                    # Fähnchen
+	_mi(root, mb, 0.7, 0.1)
+	parts["muzzle"] = _marker(root, Vector3(0, 1.8, 0), "Muzzle")
+
+static func _fieldhosp(root: Node3D, parts: Dictionary, team: int) -> void:
+	var white := Color(0.93, 0.93, 0.9)
+	var blue := Color(0.18, 0.4, 0.72)
+	var dark := Color(0.1, 0.1, 0.1)
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.25
+	mb.jitter = 0.03
+	# Boden / Plane
+	mb.box(Vector3(0, 0.05, 0), Vector3(9.0, 0.1, 9.0), Color(0.6, 0.57, 0.5))
+	# Haupt-Zelt (Giebeldach) und zwei Nebenzelte
+	for cfg in [[Vector3(0, 0, -1.2), 6.0, 5.6, 2.9], [Vector3(-3.0, 0, 2.6), 3.2, 3.6, 2.0], [Vector3(2.9, 0, 2.6), 3.2, 3.6, 2.0]]:
+		var c: Vector3 = cfg[0]
+		var w: float = cfg[1]
+		var l: float = cfg[2]
+		var h: float = cfg[3]
+		var roof_w := sqrt(w * w * 0.25 + h * h)
+		var ang := rad_to_deg(atan2(h, w * 0.5))
+		mb.box(Vector3(c.x, 0.9, c.z), Vector3(w, 1.8, l), white * 0.95)
+		mb.box_t(c + Vector3(-w * 0.25, h * 0.5 + 0.75, 0), Vector3(roof_w, 0.08, l + 0.2), white, Vector3(0, 0, -ang))
+		mb.box_t(c + Vector3(w * 0.25, h * 0.5 + 0.75, 0), Vector3(roof_w, 0.08, l + 0.2), white * 0.92, Vector3(0, 0, ang))
+		mb.box(Vector3(c.x, 0.5, c.z + l * 0.5 + 0.03), Vector3(w, 0.5, 0.04), blue)
+		mb.box(Vector3(c.x, 0.9, c.z + l * 0.5 + 0.04), Vector3(0.9, 1.5, 0.04), dark)
+	# Kreuz am Haupt-Zelt und auf dem Dach
+	mb.box(Vector3(0, 2.4, 1.64), Vector3(1.6, 0.5, 0.05), blue)
+	mb.box(Vector3(0, 2.4, 1.64), Vector3(0.5, 1.6, 0.05), blue)
+	mb.box(Vector3(0, 2.4, 1.67), Vector3(1.3, 0.28, 0.04), white)
+	mb.box(Vector3(0, 2.4, 1.67), Vector3(0.28, 1.3, 0.04), white)
+	# Mast mit Fahne, Generator, Wassertank, Kisten
+	mb.cyl(Vector3(-3.9, 3.0, -3.8), 0.05, 0.05, 6.0, Color(0.75, 0.75, 0.78), 6)
+	mb.box(Vector3(-3.3, 5.4, -3.8), Vector3(1.4, 0.8, 0.03), U.team_color(team))
+	mb.box(Vector3(3.6, 0.6, -3.4), Vector3(1.2, 1.0, 0.8), Color(0.35, 0.4, 0.3))
+	mb.cyl(Vector3(3.4, 0.9, -0.2), 0.7, 0.7, 1.4, Color(0.72, 0.75, 0.78), 12)
+	for i in range(4):
+		mb.box(Vector3(-3.6 + i * 0.6, 0.35, -3.6), Vector3(0.5, 0.5, 0.5), Color(0.55, 0.42, 0.25))
+	_mi(root, mb, 0.9, 0.0)
+
 static func _launcher(root: Node3D, parts: Dictionary, team: int) -> void:
 	var col := Color(0.4, 0.42, 0.3)
 	var dark := Color(0.1, 0.1, 0.1)
@@ -875,6 +1049,7 @@ static func build_structure(kind: String, team: int) -> Node3D:
 		"adf_press": _press(root, parts, team)
 		"adf_radar": _radar(root, parts, team)
 		"adf_tower": _tower(root, parts, team)
+		"adf_fieldhosp": _fieldhosp(root, parts, team)
 	_decorate(root, kind, team)
 	root.set_meta("parts", parts)
 	return root

@@ -24,7 +24,7 @@ var bottom: Panel
 var minimap: Minimap
 var info: InfoPanel
 var card: GridContainer
-var abil: VBoxContainer
+var abil: GridContainer
 var abil_panel: Panel
 var meter: OutrageMeter
 var lbl_money: Label
@@ -190,8 +190,10 @@ func _build_bottom() -> void:
 
 func _build_abilities() -> void:
 	abil_panel = _panel(root, Color(0.07, 0.065, 0.06, 0.88), C_EDGE, 1)
-	abil = VBoxContainer.new()
-	abil.add_theme_constant_override("separation", 3)
+	abil = GridContainer.new()
+	abil.columns = 1
+	abil.add_theme_constant_override("h_separation", 3)
+	abil.add_theme_constant_override("v_separation", 3)
 	abil_panel.add_child(abil)
 
 func _build_tooltip() -> void:
@@ -251,11 +253,12 @@ func _layout() -> void:
 	info.position = Vector2(minimap.size.x + 16, 5)
 	info.size = Vector2(minf(W - minimap.size.x - 16 - 260, 640), BOT_H - 10)
 	card.position = Vector2(W - 4 * 58 - 8, 6)
-	var n_ab := 6 if team == U.TEAM_ADF else 2
-	abil_panel.size = Vector2(64, n_ab * 57 + (36 if team == U.TEAM_ADF else 0) + 8)
-	abil_panel.position = Vector2(W - 70, TOP_H + 30)
+	var two_cols := team == U.TEAM_ADF
+	var n_ab := 5 if team == U.TEAM_ADF else 2
+	abil_panel.size = Vector2(122 if two_cols else 64, n_ab * 57 + (36 if team == U.TEAM_ADF else 0) + 8)
+	abil_panel.position = Vector2(W - (128 if two_cols else 70), TOP_H + 30)
 	abil.position = Vector2(5, 4)
-	overlay.safe_rect = Rect2(8, TOP_H + 28, W - 86, H - BOT_H - TOP_H - 32)
+	overlay.safe_rect = Rect2(8, TOP_H + 28, W - (144 if team == U.TEAM_ADF else 86), H - BOT_H - TOP_H - 32)
 	banner.size = Vector2(minf(W * 0.8, 920), 54)
 	banner.position = Vector2((W - banner.size.x) * 0.5, 110)
 	banner_sub.size = Vector2(banner.size.x, 30)
@@ -307,6 +310,7 @@ func _build_ability_buttons() -> void:
 	for c in abil.get_children():
 		c.queue_free()
 	_abil_buttons.clear()
+	abil.columns = 2 if team == U.TEAM_ADF else 1
 	var ids: Array = player.ability_order()
 	var i := 0
 	for id in ids:
@@ -504,6 +508,8 @@ func _update_card_states() -> void:
 			act = player.mode == "fire_ground"
 		if it.get("toggle", "") == "check":
 			act = player.mode == "check"
+		if it.get("toggle", "") == "tunnel":
+			act = player.mode == "tunnel"
 		if b.enabled != en or b.active != act:
 			b.enabled = en
 			b.active = act
@@ -651,12 +657,13 @@ func _update_top() -> void:
 			if h.alive and h.revealed:
 				rev += 1
 		ex = "Tunnelknoten: %d (%d entdeckt)  ·  Beweise: %d" % [Game.alive_hubs(), rev, int(Game.evidence)]
-		ex += "  ·  ROE: %s" % ("frei" if world.roe_free[0] else "streng")
+		ex += "  ·  Unruhe: %d  ·  ROE: %s" % [world.angry_districts(), "frei" if world.roe_free[0] else "streng"]
 	else:
 		ex = "Videomaterial: %d" % int(Game.footage)
 		var m := Game.media_alive()
 		ex += "  ·  Medien-Teams: %d" % m
-		ex += "  ·  Tunnelknoten: %d" % Game.alive_hubs()
+		ex += "  ·  Knoten: %d" % Game.alive_hubs()
+		ex += "  ·  Wut: %d" % world.angry_districts()
 		if m == 0:
 			ex += "  (!)"
 	lbl_extra.text = ex

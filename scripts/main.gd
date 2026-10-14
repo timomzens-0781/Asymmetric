@@ -129,9 +129,13 @@ func _start_match(s: int, d: int, skip_brief: bool) -> void:
 	rig.yaw = 0.0 if s == U.TEAM_ADF else 0.5
 	rig.target_yaw = rig.yaw
 	if s == U.TEAM_ADF:
-		rig.jump_to(Vector3(-60, 0, 62))
+		rig.jump_to(world.city.base_assembly + Vector3(2, 0, -6))
 	else:
-		rig.jump_to(Vector3(40, 0, -45))
+		var hc := Vector3.ZERO
+		for hb in world.hubs:
+			hc += hb.position
+		hc /= maxf(world.hubs.size(), 1.0)
+		rig.jump_to(hc)
 	if _args.has("cam"):
 		var c := String(_args["cam"]).split(",")
 		rig.jump_to(Vector3(float(c[0]), 0, float(c[1])))
@@ -246,7 +250,7 @@ func _pick_demo_focus() -> void:
 	# Kamera folgt dem Geschehen: zufaellige sichtbare ADF-Truppe oder Raketenwerfer
 	var cands: Array = []
 	for u in world.units:
-		if u.alive and not u.is_civ and u.team == U.TEAM_ADF and u.layer != "air" and u.position.x > -50.0:
+		if u.alive and not u.is_civ and u.team == U.TEAM_ADF and u.layer != "air" and world.city.is_far_from_base(u.position, 60.0):
 			cands.append(u)
 	if cands.is_empty():
 		_demo_focus = Vector3(8, 0, -6)

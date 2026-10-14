@@ -3,8 +3,8 @@ extends Node3D
 ## RTS-Kamera: Pan (WASD/Pfeile/Rand), Drehen (Q/E, Mitteltaste), Zoom (Mausrad), Shake, Orbit-Modus fuers Menue.
 
 var cam: Camera3D
-var focus := Vector3(-60, 0, 66)
-var target_focus := Vector3(-60, 0, 66)
+var focus := Vector3(-120, 0, 126)
+var target_focus := Vector3(-120, 0, 126)
 var yaw := 0.45
 var target_yaw := 0.45
 var dist := 46.0
@@ -18,8 +18,8 @@ var intro := 0.0
 var _drag_rot := false
 var _rng := RandomNumberGenerator.new()
 const MIN_DIST := 14.0
-const MAX_DIST := 105.0
-const BOUND := 92.0
+const MAX_DIST := 165.0
+const BOUND := 150.0
 
 func _ready() -> void:
 	cam = Camera3D.new()

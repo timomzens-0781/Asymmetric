@@ -71,6 +71,13 @@ const UNITS := {
 		"detect_range": 14.0, "detect_rate": 16.0, "icon": "heli", "model": "adf_viper",
 		"desc": "Verheerende Feuerkraft aus der Luft. Wird bei Flugverbotszone abgezogen!",
 	},
+	"adf_aid": {
+		"short": "Hilfslaster", "name": "Hilfskonvoi-Lkw", "team": 0, "cost": 0, "time": 1.0, "hp": 260.0, "speed": 9.0,
+		"turn": 2.8, "vision": 24.0, "radius": 1.9, "layer": "wheel", "armor": "light", "pop": 0,
+		"weapons": [],
+		"detect_range": 0.0, "detect_rate": 0.0, "icon": "aid", "model": "adf_aid",
+		"desc": "Unbewaffneter Hilfslaster mit Wasser, Lebensmitteln und Medikamenten. Ein Angriff darauf wäre ein Propagandageschenk.",
+	},
 	# ------------------------------------------------------------ HADAR-FRONT (Guerilla)
 	"reb_fighter": {
 		"short": "Kämpfer", "name": "Kämpfer", "team": 1, "cost": 60, "time": 3.0, "hp": 70.0, "speed": 5.4,
@@ -139,6 +146,10 @@ const STRUCTS := {
 		"name": "Gegenbatterie-Radar", "team": 0, "hp": 1000.0, "armor": "struct", "vision": 60.0, "size": Vector3(7, 9, 7),
 		"produces": [], "desc": "Ortet Raketenabschüsse und liefert Abschussposition.",
 	},
+	"adf_fieldhosp": {
+		"name": "Feldlazarett", "team": 0, "hp": 650.0, "armor": "struct", "vision": 16.0, "size": Vector3(9, 3.2, 9),
+		"produces": [], "desc": "Versorgt Verletzte, beruhigt das Viertel und senkt die Empörung. Ein Angriff darauf wäre ein Propagandageschenk.",
+	},
 	"adf_tower": {
 		"name": "Wachturm", "team": 0, "hp": 800.0, "armor": "struct", "vision": 34.0, "size": Vector3(4, 9, 4),
 		"produces": [], "desc": "Automatischer MG-Turm.",
@@ -176,6 +187,26 @@ const ABILITIES := {
 	"evidence": {
 		"team": 0, "name": "Beweise veröffentlichen", "cost": 0, "cd": 25.0, "radius": 0.0, "target": false, "icon": "doc",
 		"desc": "Setzt gesammeltes Beweismaterial (Kämpfer in zivilen Gebäuden, Raketenabschüsse) gegen die Empörung ein.",
+		"needs_air": false,
+	},
+	"convoy": {
+		"team": 0, "name": "Hilfskonvoi", "cost": 400, "cd": 60.0, "radius": 18.0, "target": true, "icon": "aid",
+		"desc": "Drei Hilfslaster fahren ins Zielgebiet und verteilen Wasser und Medikamente. Senkt Wut im Viertel und die Empörung. Die Hadar-Front könnte den Konvoi beschießen.",
+		"needs_air": false,
+	},
+	"fieldhosp": {
+		"team": 0, "name": "Feldlazarett", "cost": 600, "cd": 90.0, "radius": 8.0, "target": true, "icon": "medic",
+		"desc": "Baut ein Lazarett im Viertel auf. Solange es steht, sinkt die Wut der Bevölkerung und die Empörung langsam. Maximal zwei.",
+		"needs_air": false,
+	},
+	"corridor": {
+		"team": 0, "name": "Evakuierungskorridor", "cost": 150, "cd": 50.0, "radius": 40.0, "target": true, "icon": "corridor",
+		"desc": "Zivilisten verlassen das Gebiet für 45 Sekunden. Wer bleibt, fällt auf – Verdacht steigt doppelt so schnell. Die Hadar-Front wird gewarnt.",
+		"needs_air": false,
+	},
+	"briefing": {
+		"team": 0, "name": "Presse-Briefing", "cost": 250, "cd": 90.0, "radius": 0.0, "target": false, "icon": "mic",
+		"desc": "Aurelia setzt ihre Erzählung: sofort −2,5 % Empörung und 60 Sekunden lang wirken neue Bilder nur zu 70 %.",
 		"needs_air": false,
 	},
 	"upload": {
@@ -232,6 +263,19 @@ const HEADLINES_L2 := [
 ]
 const HEADLINES_L3 := [
 	"Internationale Koalition greift ein – Aurelia militärisch isoliert",
+]
+const HEADLINES_VOLUNTEERS := [
+	"Nach dem Angriff: Junge Männer schließen sich der Hadar-Front an",
+	"Trauer wird zu Wut: Viertel in Qadira radikalisiert sich",
+	"Familien verlieren Angehörige – die Front gewinnt Freiwillige",
+]
+const HEADLINES_AID := [
+	"Hilfskonvoi erreicht Qadira: Wasser und Medikamente für das Viertel",
+	"Aurelia liefert Hilfsgüter – Bewohner reagieren zurückhaltend dankbar",
+]
+const HEADLINES_AID_ATTACKED := [
+	"Hadar-Front greift Hilfskonvoi an – Entsetzen in den Hauptstädten",
+	"Beschuss auf Feldlazarett: Weltgemeinschaft verurteilt Hadar-Front",
 ]
 const HEADLINES_HUB := [
 	"Tunnelnetz der Hadar-Front schwer getroffen",

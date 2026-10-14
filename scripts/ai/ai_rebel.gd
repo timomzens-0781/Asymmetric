@@ -13,6 +13,7 @@ var _rng := RandomNumberGenerator.new()
 var _garrison_spots: Array = []
 var _hot_point := Vector3.ZERO
 var _hot_t := -99.0
+var _tun_cd := 0.0
 
 func _ready() -> void:
 	_rng.randomize()
@@ -58,6 +59,7 @@ func _alive_hubs() -> Array:
 
 func _think() -> void:
 	_produce()
+	_tunnel_ops()
 	_assign_infantry()
 	_launcher_ops()
 	_media_ops()
@@ -67,6 +69,50 @@ func _think() -> void:
 		Game.use_ability(team, "donate")
 	if Game.ability_ready(team, "upload") and Game.footage > 4.0:
 		Game.use_ability(team, "upload")
+
+# ----------------------------------------------------------------------------- Tunnelnetz
+func _hub_threat(h: Structure) -> float:
+	var th := 0.0
+	for o in world.dyn.query(h.position, 44.0):
+		if o is Unit and o.alive and o.team == U.TEAM_ADF and not (o as Unit).weapons.is_empty():
+			if U.dist2d(o.position, h.position) < 42.0:
+				th += 0.5 if (o as Unit).layer == "foot" else 1.0
+	if h.hp < h.max_hp * 0.7:
+		th += 1.0
+	return th
+
+## Besatzung bedrohter Knoten verschwindet durch den Tunnel in den sichersten Knoten.
+func _tunnel_ops() -> void:
+	_tun_cd -= 1.0
+	if _tun_cd > 0.0:
+		return
+	var hubs := _alive_hubs()
+	if hubs.size() < 2:
+		return
+	for h in hubs:
+		if h.garrisoned.is_empty():
+			continue
+		if _hub_threat(h) < 1.5:
+			continue
+		var best: Structure = null
+		var best_sc := -1e9
+		for o in hubs:
+			if o == h or o.garrisoned.size() >= o.garrison_cap:
+				continue
+			if world.tunnel_route(h, o).is_empty():
+				continue
+			var sc: float = -_hub_threat(o) * 60.0 + U.dist2d(o.position, h.position) * 0.15 - (o.garrisoned.size() * 3.0)
+			if sc > best_sc:
+				best_sc = sc
+				best = o
+		if best == null:
+			continue
+		var moved := 0
+		for u in h.garrisoned.duplicate():
+			if u is Unit and (u as Unit).tunnel_t <= 0.0 and (u as Unit).cmd_tunnel(best):
+				moved += 1
+		if moved > 0:
+			_tun_cd = 6.0
 
 # ----------------------------------------------------------------------------- Produktion
 func _count_kind(k: String) -> int:
@@ -118,7 +164,7 @@ func _ambush_buildings() -> Array:
 		return _garrison_spots
 	# Gebaeude entlang des Anmarschwegs der Armee und rund um die Tunnelknoten
 	var spots: Array = []
-	var path: PackedVector3Array = world.nav.find_path(Vector3(-62, 0, 40), Vector3(50, 0, -55), "foot")
+	var path: PackedVector3Array = world.nav.find_path(world.city.base_front, world.city.far_goal, "foot")
 	for s in world.structures:
 		if not s.alive or s.kind_class != "house":
 			continue
@@ -130,7 +176,7 @@ func _ambush_buildings() -> Array:
 		for h in world.hubs:
 			if U.dist2d(s.position, h.position) < 22.0:
 				near = true
-		if near and s.position.x > -45.0:
+		if near and world.city.is_far_from_base(s.position, 70.0):
 			spots.append(s)
 	_garrison_spots = spots
 	return spots
@@ -168,7 +214,7 @@ func _assign_infantry() -> void:
 	for u in _all_units():
 		if u.ai_role == "roam" and u.order_type == "idle" and _rng.randf() < 0.15:
 			var p2 := world.city.random_street_point(_rng)
-			if p2.x > -30.0:
+			if world.city.is_far_from_base(p2, 60.0):
 				u.cmd_move(p2)
 		if u.ai_role == "ambush" and u.garrison == null and u.order_type == "idle":
 			u.ai_role = ""
@@ -229,7 +275,7 @@ func _start_launch(l: Unit) -> void:
 	# Abschussposition: dicht besiedeltes Gebiet in Raketenreichweite der Basis
 	var best := Vector3.ZERO
 	var best_sc := -1.0
-	var base := Vector3(-72, 0, 70)
+	var base: Vector3 = world.city.base_assembly
 	for i in range(8):
 		var p := world.city.random_street_point(_rng)
 		var dist := U.dist2d(p, base)
@@ -254,7 +300,7 @@ func _start_launch(l: Unit) -> void:
 func _pick_adf_target(from: Vector3) -> Structure:
 	var cands: Array = []
 	for s in world.structures:
-		if s.alive and s.team == U.TEAM_ADF and U.dist2d(s.position, from) < 135.0 and U.dist2d(s.position, from) > 36.0:
+		if s.alive and s.team == U.TEAM_ADF and s.kind != "adf_fieldhosp" and U.dist2d(s.position, from) < 135.0 and U.dist2d(s.position, from) > 36.0:
 			cands.append(s)
 	if cands.is_empty():
 		return null
@@ -266,7 +312,7 @@ func _media_ops() -> void:
 	var c := Vector3.ZERO
 	var n := 0
 	for u in world.units:
-		if u.alive and u.team == U.TEAM_ADF and u.seen_by(team) and u.layer != "air" and u.position.x > -40.0:
+		if u.alive and u.team == U.TEAM_ADF and u.seen_by(team) and u.layer != "air" and world.city.is_far_from_base(u.position, 50.0):
 			c += u.position
 			n += 1
 	if n > 0:
@@ -292,10 +338,10 @@ func _ied_ops() -> void:
 		var d: Dictionary = s.ai_data
 		var st: String = d.get("state", "idle")
 		if st == "idle" and _ied_cd <= 0.0 and s.order_type == "idle":
-			var path: PackedVector3Array = world.nav.find_path(Vector3(-62, 0, 40), Vector3(50, 0, -50), "veh")
+			var path: PackedVector3Array = world.nav.find_path(world.city.base_front, world.city.far_goal, "veh")
 			if path.size() > 3:
 				var pt: Vector3 = path[_rng.randi_range(1, path.size() - 2)]
-				if pt.x > -35.0:
+				if world.city.is_far_from_base(pt, 60.0):
 					s.ai_data = {"state": "go", "spot": pt}
 					s.cmd_move(pt)
 					_ied_cd = _rng.randf_range(35.0, 60.0) / _diff()
@@ -372,7 +418,7 @@ func _micro() -> void:
 				if bd < 45.0 and _local_odds(best.position) > 0.8:
 					u.cmd_attack(best)
 				elif bd < 20.0:
-					u.cmd_move(Vector3(clampf(u.position.x + 25.0, -90.0, 90.0), 0, clampf(u.position.z - 25.0, -90.0, 90.0)))
+					u.cmd_move(Vector3(clampf(u.position.x + 25.0, -City.HALF + 10.0, City.HALF - 10.0), 0, clampf(u.position.z - 25.0, -City.HALF + 10.0, City.HALF - 10.0)))
 			"reb_fighter":
 				# Streuner greifen an, wenn sie in der Ueberzahl sind
 				if u.ai_role == "roam" and bd < 22.0 and _local_odds(best.position) > 1.4:
