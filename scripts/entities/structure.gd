@@ -12,6 +12,9 @@ var revealed := false           # Tunnelknoten fuer ADF entlarvt
 var hot_t := 0.0                # Gebaeude hat gerade geschossen (feindliche Aktivitaet)
 var warned := false
 var garrisoned: Array = []
+var stormers: Array = []          # Angreifer, die gerade im Haus kaempfen (Haeuserkampf)
+var _storm_round_t := 0.0
+var searched_t := 0.0             # Haus wurde durchsucht/gesichert
 var garrison_cap := 5
 var queue: Array = []           # {kind, t, total}
 var rally := Vector3.ZERO
@@ -224,6 +227,111 @@ func _tunnel_emerge(u: Unit) -> void:
 			Game.news("Soldaten beobachten Bewaffnete beim Verlassen eines Wohnhauses", "info")
 			return
 
+# ============================================================================= Haeuserkampf
+func can_be_stormed() -> bool:
+	return alive and kind_class == "house" and stormers.size() < 8
+
+func add_stormer(u: Unit) -> void:
+	if u in stormers or stormers.size() >= 8:
+		u.order_type = "idle"
+		return
+	stormers.append(u)
+	u.storming = self
+	u.order_type = "idle"
+	u.path = PackedVector3Array()
+	u.path_i = 0
+	u.position = Vector3(position.x, 0.0, position.z)
+	u.visible = false
+	if u.selected:
+		world.deselect_entity(u)
+	hot_t = 7.0
+	_storm_round_t = minf(_storm_round_t, 1.0) if stormers.size() > 1 else 1.2
+	if stormers.size() == 1:
+		Game.stats.storms = int(Game.stats.get("storms", 0)) + 1
+		Game.message("Haus wird gestürmt", "info", u.team)
+		Game.log_event("storm", "Haus gestürmt", position)
+
+func _sim_storm(dt: float) -> void:
+	stormers = stormers.filter(func(u): return is_instance_valid(u) and u.alive)
+	if stormers.is_empty():
+		return
+	_storm_round_t -= dt
+	if _storm_round_t > 0.0:
+		return
+	_storm_round_t = 2.0
+	var att_team: int = stormers[0].team
+	var defenders: Array = garrisoned.filter(func(g): return is_instance_valid(g) and g.alive and g.team != att_team and g.tunnel_t <= 0.0)
+	hot_t = 7.0
+	if defenders.is_empty():
+		_storm_done()
+		return
+	if hub and not revealed:
+		mark_revealed("Sturm auf das Haus")
+		Game.message("Widerstand im Haus – Tunnelknoten entdeckt!", "good", U.TEAM_ADF)
+	var a := stormers.size()
+	var d := defenders.size()
+	var victim: Unit = defenders[randi() % d]
+	victim.take_damage(15.0 * sqrt(float(a)) * randf_range(0.7, 1.3), stormers[0], "bullet", position)
+	if not stormers.is_empty():
+		var att: Unit = stormers[randi() % stormers.size()]
+		att.take_damage(13.0 * sqrt(float(d)) * randf_range(0.7, 1.3), defenders[0], "bullet", position)
+	# Gefechtslaerm an den Fenstern
+	var wp := position + Vector3(randf_range(-hx, hx) * 0.8, size.y * randf_range(0.3, 0.8), randf_range(-hz, hz) * 0.8)
+	world.fx.muzzle_flash(wp)
+	Sfx.play_at("shot_mg", position)
+	world.noise(position, 40.0, 1)
+	# Zivilisten im Haus geraten ins Feuer
+	if occupants > 0 and randf() < 0.14:
+		occupants -= 1
+		Game.report_civilian_deaths(position, 1.0, att_team, "direct", true)
+	if stormers.is_empty():
+		Game.message("Sturm gescheitert – alle Angreifer gefallen", "bad", att_team)
+
+func _storm_done() -> void:
+	var team_a: int = stormers[0].team if not stormers.is_empty() else U.TEAM_ADF
+	var had_fight := false
+	for g in garrisoned:
+		if is_instance_valid(g) and g.team != team_a:
+			had_fight = true
+	for u in stormers.duplicate():
+		if is_instance_valid(u) and u.alive:
+			u.storming = null
+			u.visible = true
+			u.position = world.nav.nearest_free_pos(door_pos(u.position), "foot", 8)
+			u.order_type = "idle"
+	stormers.clear()
+	searched_t = 60.0
+	if hub:
+		secure()
+	elif occupants > 0:
+		# Durchsuchung: Anwohner sind verängstigt, kleine Schikane
+		Game.add_outrage(0.4, false, "check")
+		world.add_anger(position, 1.5)
+		Game.message("Haus durchsucht: nichts Verdächtiges", "info", team_a)
+	else:
+		Game.message("Haus gesichert", "good", team_a)
+
+## Tunnelknoten im Haeuserkampf eingenommen: Zugang gesichert, Netz verliert den Knoten (ohne Einsturz).
+func secure() -> void:
+	if not hub:
+		return
+	hub = false
+	revealed = false
+	team = U.TEAM_CIV
+	produces = []
+	queue.clear()
+	for g in garrisoned.duplicate():
+		if is_instance_valid(g):
+			(g as Unit).ungarrison()
+			g.take_damage(9999.0, null, "he", position)
+	garrisoned.clear()
+	world.hubs.erase(self)
+	Game.stats.hubs_secured = int(Game.stats.get("hubs_secured", 0)) + 1
+	Game.hub_destroyed(self)
+	Game.message("Tunnelzugang gesichert!", "good", U.TEAM_ADF)
+	Game.log_event("hub", "Tunnelknoten im Häuserkampf gesichert", position)
+	world.fx.dust_cloud(position + Vector3(0, 1.0, 0), 2.0)
+
 # ============================================================================= Sim
 func _process(dt: float) -> void:
 	if not alive or world == null or world.paused:
@@ -243,6 +351,10 @@ func _process(dt: float) -> void:
 		var ax: int = parts.get("rotor_axis", 0)
 		(parts.rotor as Node3D).rotation.y += dt * 1.2
 	_sim_evac(dt)
+	if not stormers.is_empty():
+		_sim_storm(dt)
+	if searched_t > 0.0:
+		searched_t -= dt
 	# Rauch/Feuer bei Schaden
 	var f := 1.0 - hp / max_hp
 	if f > 0.45 and _smoke == null:

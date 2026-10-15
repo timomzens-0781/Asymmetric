@@ -20,6 +20,8 @@ var _sectors: Array = []
 var _op_started := false
 var _hub_attack_t := 0.0
 var _next_strike_t := 0.0
+var _storm_tries: Dictionary = {}
+var _storm_last: Dictionary = {}
 
 func _ready() -> void:
 	_rng.randomize()
@@ -96,7 +98,7 @@ func _produce() -> void:
 	wish.append(["adf_apc", 4, 2.2])
 	wish.append(["adf_mbt", 4, 2.5])
 	wish.append(["adf_arty", 2, 1.5])
-	wish.append(["adf_drone", 2, 2.8])
+	wish.append(["adf_drone", 1, 2.8])
 	if not Game.no_fly_zone():
 		wish.append(["adf_viper", 2, 1.5])
 	# am staerksten unterbesetzte Einheit waehlen
@@ -124,7 +126,7 @@ func _produce() -> void:
 func _army() -> Array:
 	var a: Array = []
 	for u in world.units:
-		if u.alive and u.team == team and not u.weapons.is_empty() and not u.has_meta("leaving") and u.kind != "adf_arty":
+		if u.alive and u.team == team and u.storming == null and not u.weapons.is_empty() and not u.has_meta("leaving") and u.kind != "adf_arty":
 			a.append(u)
 	return a
 
@@ -170,12 +172,14 @@ func _manage_army() -> void:
 	# Hubs bekannt? Dann gezielt dorthin
 	var hub := _revealed_hub()
 	if hub != null:
+		var storm_mode := _try_storm(army, hub)
 		if _hub_attack_t <= 0.0 or not (U.dist2d(_army_target, hub.position) < 20.0):
 			_army_target = hub.door_pos(cen)
 			_hub_attack_t = [95.0, 70.0, 48.0][Game.difficulty]
 			need_new = false
 			_dispatch(army, _army_target, true)
-			_attack_hub(army, arty, hub)
+			if not storm_mode:
+				_attack_hub(army, arty, hub)
 		_hub_attack_t -= 1.0
 	elif need_new or (all_idle and not _op_started):
 		_op_started = true
@@ -185,9 +189,13 @@ func _manage_army() -> void:
 		_dispatch(army, _army_target, false)
 	# Aufklaerung vorausschicken
 	for d in drones:
-		if d.order_type == "idle" or U.dist2d(d.position, _army_target) > 60.0:
-			var lead := cen + (_army_target - cen).normalized() * minf(30.0, U.dist2d(cen, _army_target))
-			d.cmd_move(lead)
+		var lead := cen + (_army_target - cen).normalized() * minf(30.0, U.dist2d(cen, _army_target))
+		var old_lead: Vector3 = d.get_meta("patrol_lead", Vector3.INF)
+		if d.order_type == "idle" or old_lead == Vector3.INF or U.dist2d(old_lead, lead) > 45.0:
+			var fwd := (_army_target - cen).normalized()
+			var side := Vector3(-fwd.z, 0, fwd.x) * 30.0
+			d.set_meta("patrol_lead", lead)
+			d.cmd_patrol([lead + side, lead - side])
 	# Artillerie in Stellung bringen
 	for a in arty:
 		if a.order_type == "idle" and U.dist2d(a.position, cen) > 45.0:
@@ -220,6 +228,29 @@ func _revealed_hub() -> Structure:
 				bd = d
 				best = h
 	return best
+
+## Haeuserkampf statt Bombardement, wenn Zivilisten gefaehrdet sind oder die Stimmung kippt. true = Sturm laeuft/geplant.
+func _try_storm(army: Array, hub: Structure) -> bool:
+	if not hub.stormers.is_empty():
+		return true
+	var inf: Array = []
+	for u in army:
+		if u.layer == "foot" and not u.weapons.is_empty() and U.dist2d(u.position, hub.position) < 70.0 and u.order_type != "storm":
+			inf.append(u)
+	var tries: int = _storm_tries.get(hub.id, 0)
+	var prefer: bool = (hub.occupants > 3 or Game.outrage > 25.0) and tries < 3
+	if not prefer or inf.size() < 3:
+		return false
+	if Game.time - float(_storm_last.get(hub.id, -99.0)) > 25.0:
+		_storm_tries[hub.id] = tries + 1
+		_storm_last[hub.id] = Game.time
+		var n := 0
+		for u in inf:
+			if n >= 8:
+				break
+			if u.cmd_storm(hub):
+				n += 1
+	return true
 
 func _attack_hub(army: Array, arty: Array, hub: Structure) -> void:
 	for u in army:

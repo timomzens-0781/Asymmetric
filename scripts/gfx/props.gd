@@ -348,22 +348,15 @@ static func _tent(big: bool) -> ArrayMesh:
 	mb.jitter = 0.03
 	var w := 4.2 if big else 2.8
 	var l := 5.6 if big else 3.6
-	var h := 2.4 if big else 1.8
+	var wall_h := 1.3 if big else 1.0
+	var rise := 1.1 if big else 0.8
 	var cloth := Color(0.86, 0.84, 0.76)
 	var stripe := Color(0.2, 0.38, 0.62)
-	# Giebelzelt: zwei geneigte Daecher + Giebelwaende
-	var roof_w := sqrt(w * w * 0.25 + h * h)
-	var ang := rad_to_deg(atan2(h, w * 0.5))
-	mb.box_t(Vector3(-w * 0.25, h * 0.5 + 0.2, 0), Vector3(roof_w, 0.06, l), cloth, Vector3(0, 0, -ang))
-	mb.box_t(Vector3(w * 0.25, h * 0.5 + 0.2, 0), Vector3(roof_w, 0.06, l), cloth * 0.93, Vector3(0, 0, ang))
-	mb.box(Vector3(-w * 0.5 + 0.02, 0.6, 0), Vector3(0.05, 1.0, l), cloth * 0.88)
-	mb.box(Vector3(w * 0.5 - 0.02, 0.6, 0), Vector3(0.05, 1.0, l), cloth * 0.88)
-	for sz in [-l * 0.5, l * 0.5]:
-		mb.box(Vector3(0, 0.8, sz), Vector3(w, 1.6, 0.05), cloth * 0.9)
-		mb.box(Vector3(0, 1.65, sz), Vector3(w * 0.6, 0.5, 0.05), cloth * 0.9)
+	mb.box(Vector3(0, wall_h * 0.5, 0), Vector3(w, wall_h, l), cloth * 0.93)
+	mb.gable(Vector3(0, wall_h, 0), w + 0.3, l + 0.3, rise, cloth)
 	# Blaues Band (Hilfswerk) und Eingang
 	mb.box(Vector3(0, 0.2, l * 0.5 + 0.03), Vector3(w, 0.18, 0.03), stripe)
-	mb.box(Vector3(0, 0.75, l * 0.5 + 0.03), Vector3(0.8, 1.3, 0.03), Color(0.15, 0.13, 0.1))
+	mb.box(Vector3(0, wall_h * 0.5, l * 0.5 + 0.03), Vector3(0.8, wall_h * 0.95, 0.03), Color(0.15, 0.13, 0.1))
 	# Abspannleinen / Heringe
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:

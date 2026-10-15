@@ -541,7 +541,7 @@ func _add_building(rect: Rect2, h: float, kind: String, zone: String, shop: bool
 	}
 	_next_bid += 1
 	var vol: float = rect.size.x * rect.size.y * h
-	b.hp = clampf(vol * 0.32, 340.0, 1200.0)
+	b.hp = clampf(vol * 0.48, 520.0, 1800.0)
 	b.occ = clampi(int(rect.size.x * rect.size.y / 22.0) + rng.randi_range(0, 4), 2, 18)
 	if kind == "hospital":
 		b.occ = 34

@@ -10,11 +10,11 @@ const FACTION_NAMES := {
 
 ## Schadensmultiplikatoren [Schadenstyp][Panzerungsklasse]
 const DMG_MULT := {
-	"bullet":  {"inf": 1.0, "civ": 1.0, "light": 0.35, "heavy": 0.08, "struct": 0.10, "air": 0.45},
-	"ap":      {"inf": 0.7, "civ": 0.7, "light": 1.0, "heavy": 1.0, "struct": 0.8, "air": 0.8},
-	"he":      {"inf": 1.0, "civ": 1.0, "light": 0.9, "heavy": 0.6, "struct": 1.25, "air": 0.0},
-	"missile": {"inf": 0.8, "civ": 0.8, "light": 1.0, "heavy": 0.9, "struct": 1.0, "air": 1.0},
-	"ied":     {"inf": 1.0, "civ": 1.0, "light": 1.2, "heavy": 0.9, "struct": 0.5, "air": 0.0},
+	"bullet":  {"inf": 1.0, "civ": 1.0, "light": 0.35, "heavy": 0.08, "struct": 0.03, "air": 0.45, "airh": 0.0},
+	"ap":      {"inf": 0.7, "civ": 0.7, "light": 1.0, "heavy": 1.0, "struct": 0.55, "air": 0.8, "airh": 0.8},
+	"he":      {"inf": 1.0, "civ": 1.0, "light": 0.9, "heavy": 0.6, "struct": 1.25, "air": 0.0, "airh": 0.0},
+	"missile": {"inf": 0.8, "civ": 0.8, "light": 1.0, "heavy": 0.9, "struct": 1.0, "air": 1.0, "airh": 1.0},
+	"ied":     {"inf": 1.0, "civ": 1.0, "light": 1.2, "heavy": 0.9, "struct": 0.5, "air": 0.0, "airh": 0.0},
 }
 
 const UNITS := {
@@ -55,15 +55,15 @@ const UNITS := {
 		"desc": "Billige Flächenwirkung auf große Distanz. Ungenau – hohes Kollateralrisiko!",
 	},
 	"adf_drone": {
-		"short": "Drohne", "name": "Argus Drohne", "team": 0, "cost": 400, "time": 8.0, "hp": 90.0, "speed": 16.0,
-		"turn": 3.0, "vision": 50.0, "radius": 1.0, "layer": "air", "armor": "air", "pop": 2,
+		"short": "Drohne", "name": "Argus Drohne", "team": 0, "cost": 700, "time": 10.0, "hp": 170.0, "speed": 16.0,
+		"turn": 3.0, "vision": 54.0, "radius": 1.0, "layer": "air", "armor": "airh", "pop": 2, "high": true, "air_h": 30.0,
 		"weapons": [],
 		"detect_range": 22.0, "detect_rate": 14.0, "icon": "drone", "model": "adf_drone",
-		"desc": "Aufklärungsdrohne mit riesiger Sichtweite. Entlarvt Verdächtige aus der Luft.",
+		"desc": "Aufklärungsdrohne mit riesiger Sichtweite, fliegt hoch über den Dächern. Nur RPGs können sie erreichen. Mit P auf Patrouille schicken.",
 	},
 	"adf_viper": {
 		"short": "Viper", "name": "Viper Kampfhubschrauber", "team": 0, "cost": 1200, "time": 16.0, "hp": 420.0, "speed": 15.0,
-		"turn": 2.4, "vision": 42.0, "radius": 2.0, "layer": "air", "armor": "air", "pop": 4,
+		"turn": 2.4, "vision": 42.0, "radius": 2.0, "layer": "air", "armor": "air", "pop": 4, "air_h": 21.0,
 		"weapons": [
 			{"range": 40.0, "damage": 80.0, "cd": 3.2, "type": "missile", "proj": "missile", "splash": 3.0, "speed": 60.0, "air": true},
 			{"range": 32.0, "damage": 7.0, "cd": 0.14, "type": "bullet", "proj": "hit", "air": true},
@@ -89,7 +89,7 @@ const UNITS := {
 	"reb_rpg": {
 		"short": "RPG", "name": "RPG-Schütze", "team": 1, "cost": 120, "time": 5.0, "hp": 75.0, "speed": 5.0,
 		"turn": 12.0, "vision": 24.0, "radius": 0.8, "layer": "foot", "armor": "inf", "pop": 1,
-		"weapons": [{"range": 28.0, "damage": 150.0, "cd": 4.6, "type": "ap", "proj": "rocket", "splash": 1.8, "speed": 42.0, "air": true}],
+		"weapons": [{"range": 28.0, "damage": 150.0, "cd": 4.6, "type": "ap", "proj": "rocket", "splash": 1.8, "speed": 42.0, "air": true, "aa": true}],
 		"conceal": true, "icon": "rpg", "model": "reb_rpg",
 		"desc": "Der Panzerschreck der Armen. Zwei, drei Treffer – und der Gigant brennt.",
 	},

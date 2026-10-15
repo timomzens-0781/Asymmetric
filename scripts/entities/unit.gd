@@ -30,7 +30,7 @@ var disguise: Node3D = null
 var heading := 0.0
 var path := PackedVector3Array()
 var path_i := 0
-var order_type := "idle"      # idle | move | attack | attack_move | attack_ground | garrison
+var order_type := "idle"      # idle | move | attack | attack_move | attack_ground | garrison | patrol | cover | check
 var order_pos := Vector3.ZERO
 var order_target: Entity = null
 var target: Entity = null
@@ -38,10 +38,18 @@ var ground_target := Vector3.ZERO
 var has_ground_target := false
 var hold := false
 var garrison: Structure = null
+var storming: Structure = null       # ADF-Infanterie im Haeuserkampf (unsichtbar im Gebaeude)
 var tunnel_t := 0.0                 # > 0: gerade im Tunnelnetz unterwegs (Ziel = garrison)
 var tunnel_dur := 0.0
 var tunnel_pts := PackedVector3Array()   # Hubs der Route (fuer die Anzeige)
 var tunnel_len := 0.0
+var patrol_pts: Array = []           # Wegpunkte der Patrouille (Index 0 = Startpunkt)
+var patrol_i := 0
+var patrol_dir := 1
+var entrenched := false              # in Deckung / verschanzt: erleidet weniger Schaden
+var entrench_t := 0.0                # > 0: Eingraben laeuft
+var cover_kind := ""                 # "dug" (eingegraben) | "wall" (hinter Mauer)
+var _cover_vis: Node3D = null
 var tunnel_ready := 0.0               # frueheste erneute Tunnelreise (Weltzeit)
 var moving := false
 var air_h := 0.0
@@ -106,7 +114,7 @@ func setup(k: String, t: int, w: World) -> void:
 		ww["cdl"] = randf() * ww.get("cd", 1.0)
 		weapons.append(ww)
 	if layer == "air":
-		air_h = 16.0 if kind == "adf_drone" else 11.0
+		air_h = float(def.get("air_h", 12.0))
 	name = "%s_%d" % [k, id]
 	_build_model()
 
@@ -141,6 +149,127 @@ func _clear_orders() -> void:
 	_repaths = 0
 	_burst_left = 0
 
+func _is_am() -> bool:
+	return order_type == "attack_move" or order_type == "patrol"
+
+func can_cover() -> bool:
+	return layer == "foot" and not is_civ and not press and not weapons.is_empty()
+
+func can_patrol() -> bool:
+	return not is_civ and not manual_only and not is_launcher
+
+func _dmg_mult(dtype: String) -> float:
+	if not entrenched:
+		return 1.0
+	var k := 0.5 if cover_kind == "dug" else 0.58
+	if dtype == "bullet":
+		return k
+	if dtype == "ied":
+		return 0.85
+	return k + 0.2     # Splitter / Panzerabwehr: Deckung hilft weniger
+
+func _leave_cover() -> void:
+	entrenched = false
+	entrench_t = 0.0
+	cover_kind = ""
+	if _cover_vis != null and is_instance_valid(_cover_vis):
+		_cover_vis.queue_free()
+	_cover_vis = null
+
+func _begin_cover_visual(sandbags: bool) -> void:
+	if not sandbags or _cover_vis != null:
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = Props.get_mesh("sandbags")
+	mi.scale = Vector3(0.55, 0.55, 0.55)
+	mi.position = Vector3(sin(heading) * 1.0, 0.0, cos(heading) * 1.0)
+	mi.rotation.y = heading + PI * 0.5
+	add_child(mi)
+	_cover_vis = mi
+
+## Haus stuermen (Aurelia-Infanterie): zur Tuer laufen, im Haus Mann gegen Mann kaempfen.
+func cmd_storm(s: Structure) -> bool:
+	if layer != "foot" or is_civ or press or weapons.is_empty() or team != U.TEAM_ADF:
+		return false
+	if s == null or not s.alive or s.kind_class != "house" or s.team == team:
+		return false
+	if garrison != null:
+		ungarrison()
+	_leave_cover()
+	_clear_orders()
+	order_type = "storm"
+	order_target = s
+	_set_path(s.door_pos(position))
+	return true
+
+## Verschanzen: eingraben, danach deutlich weniger Schaden – aber unbeweglich.
+func cmd_entrench() -> void:
+	if not can_cover() or garrison != null:
+		return
+	_leave_cover()
+	_clear_orders()
+	entrench_t = 2.4
+	cover_kind = "dug"
+	_begin_cover_visual(true)
+
+## Deckung nehmen: zur naechsten Mauer laufen, die zwischen Einheit und Gegner liegt.
+func cmd_take_cover() -> bool:
+	if not can_cover() or garrison != null:
+		return false
+	var threat := Vector3.INF
+	var bd := 75.0
+	for o in world.dyn.query(position, 75.0):
+		if o is Unit and o.alive and o.team != team and o.team != U.TEAM_CIV and not (o as Unit).is_civ and (o as Unit).seen_by(team):
+			var dd: float = U.dist2d(o.position, position)
+			if dd < bd:
+				bd = dd
+				threat = o.position
+	var cp := world.nav.find_cover(position, threat)
+	if cp == Vector3.INF and threat != Vector3.INF:
+		cp = world.nav.find_cover(position, Vector3.INF)
+	_leave_cover()
+	if cp == Vector3.INF:
+		cmd_entrench()
+		return false
+	_clear_orders()
+	order_type = "cover"
+	order_pos = cp
+	_set_path(cp)
+	return true
+
+## Patrouille: pendelt zwischen den Wegpunkten (Index 0 = aktuelle Position), bekaempft unterwegs Feinde.
+func cmd_patrol(pts: Array) -> void:
+	if pts.is_empty() or not can_patrol():
+		return
+	if garrison != null:
+		ungarrison()
+	_leave_cover()
+	_clear_orders()
+	patrol_pts = [position]
+	patrol_pts.append_array(pts)
+	patrol_i = 1
+	patrol_dir = 1
+	order_type = "patrol"
+	order_pos = patrol_pts[1]
+	_am_repaths = 0
+	_set_path(order_pos)
+
+func _patrol_advance() -> void:
+	if patrol_pts.size() < 2:
+		order_type = "idle"
+		return
+	var ni := patrol_i + patrol_dir
+	if ni >= patrol_pts.size():
+		patrol_dir = -1
+		ni = patrol_pts.size() - 2
+	elif ni < 0:
+		patrol_dir = 1
+		ni = 1
+	patrol_i = clampi(ni, 0, patrol_pts.size() - 1)
+	order_pos = patrol_pts[patrol_i]
+	_am_repaths = 0
+	_set_path(order_pos)
+
 func cmd_stop() -> void:
 	if garrison != null:
 		ungarrison()
@@ -149,6 +278,7 @@ func cmd_stop() -> void:
 func cmd_move(p: Vector3) -> void:
 	if garrison != null:
 		ungarrison()
+	_leave_cover()
 	_clear_orders()
 	order_type = "move"
 	order_pos = p
@@ -158,6 +288,7 @@ func cmd_move(p: Vector3) -> void:
 func cmd_attack_move(p: Vector3) -> void:
 	if garrison != null:
 		ungarrison()
+	_leave_cover()
 	_clear_orders()
 	order_type = "attack_move"
 	order_pos = p
@@ -181,6 +312,7 @@ func cmd_check(t: Unit) -> void:
 		return
 	if garrison != null:
 		ungarrison()
+	_leave_cover()
 	_clear_orders()
 	order_type = "check"
 	order_target = t
@@ -204,6 +336,7 @@ func cmd_garrison(s: Structure) -> void:
 		return
 	if garrison != null:
 		ungarrison()
+	_leave_cover()
 	_clear_orders()
 	order_type = "garrison"
 	order_target = s
@@ -265,7 +398,7 @@ func refresh_appearance() -> void:
 ## Wird nach jedem Sichtbarkeits-Tick aufgerufen.
 func apply_visibility(player_team: int) -> void:
 	var vis := team == player_team or seen_by(player_team)
-	if garrison != null:
+	if garrison != null or storming != null:
 		vis = false
 	visible = vis
 	if disguise != null:
@@ -349,6 +482,8 @@ func _process(dt: float) -> void:
 	if exposed_t > 0.0:
 		exposed_t -= dt
 	_anim_t += dt
+	if storming != null:
+		return
 	if garrison != null:
 		if tunnel_t > 0.0:
 			tunnel_t -= dt
@@ -360,6 +495,10 @@ func _process(dt: float) -> void:
 			return
 		_sim_garrison(dt)
 		return
+	if entrench_t > 0.0:
+		entrench_t -= dt
+		if entrench_t <= 0.0:
+			entrenched = true
 	if is_civ:
 		_sim_civilian(dt)
 	else:
@@ -448,7 +587,7 @@ func _sim_combat(dt: float) -> void:
 			if best.is_empty() or rng > best.range:
 				best = w
 	# Verfolgung / Annaeherung
-	var chase := order_type == "attack" or order_type == "attack_ground" or order_type == "attack_move"
+	var chase := order_type == "attack" or order_type == "attack_ground" or _is_am()
 	if not in_range and chase:
 		_chase_t -= dt
 		if _chase_t <= 0.0:
@@ -549,7 +688,7 @@ func _sim_aid(dt: float) -> void:
 			queue_free()
 
 func _target_still_valid(t: Entity) -> bool:
-	if order_type == "attack_move":
+	if _is_am():
 		return U.dist2d(position, t.position) <= vision * 1.05
 	return _in_range_any(t, 1.25)
 
@@ -568,7 +707,7 @@ func _longest_range() -> float:
 
 func _auto_range() -> float:
 	var r := _longest_range()
-	if order_type == "attack_move":
+	if _is_am():
 		return minf(maxf(r, vision * 0.7), vision)
 	return r
 
@@ -756,13 +895,36 @@ func _move(dt: float) -> void:
 		_move_air(dt)
 		return
 	if path_i >= path.size():
-		if order_type == "attack_move":
+		if order_type == "patrol":
+			if target == null:
+				if U.dist2d(position, order_pos) > 6.0 and _am_repaths < 6:
+					_am_repaths += 1
+					_set_path(order_pos)
+				else:
+					_patrol_advance()
+		elif order_type == "attack_move":
 			# nach dem Gefecht zum eigentlichen Ziel weitermarschieren
 			if target == null and U.dist2d(position, order_pos) > 5.0 and _am_repaths < 8:
 				_am_repaths += 1
 				_set_path(order_pos)
 			elif target == null:
 				order_type = "idle"
+		elif order_type == "storm":
+			var sb := order_target as Structure
+			if sb != null and sb.alive and U.dist2d(position, sb.position) < sb.radius + 6.0:
+				sb.add_stormer(self)
+			else:
+				order_type = "idle"
+		elif order_type == "cover":
+			order_type = "idle"
+			entrenched = true
+			cover_kind = "wall"
+			var thr_dir := heading
+			for o in world.dyn.query(position, 60.0):
+				if o is Unit and o.alive and o.team != team and not (o as Unit).is_civ and o.team != U.TEAM_CIV:
+					thr_dir = atan2(o.position.x - position.x, o.position.z - position.z)
+					break
+			heading = thr_dir
 		elif order_type == "move":
 			order_type = "idle"
 		elif order_type == "garrison":
@@ -820,7 +982,9 @@ func _move(dt: float) -> void:
 				# aufgeben
 				path = PackedVector3Array()
 				path_i = 0
-				if order_type == "move" or order_type == "attack_move":
+				if order_type == "patrol":
+					_patrol_advance()
+				elif order_type == "move" or order_type == "attack_move" or order_type == "cover":
 					order_type = "idle"
 			else:
 				var dest: Vector3 = path[path.size() - 1]
@@ -869,7 +1033,9 @@ func _separate_idle(dt: float) -> void:
 
 func _move_air(dt: float) -> void:
 	if path_i >= path.size():
-		if order_type == "move" or order_type == "attack_move":
+		if order_type == "patrol":
+			_patrol_advance()
+		elif order_type == "move" or order_type == "attack_move":
 			order_type = "idle"
 		# Hubschrauber: kreisen/schweben leicht
 		return
@@ -905,6 +1071,8 @@ func _animate(dt: float) -> void:
 	if disguise != null:
 		disguise.rotation.y = heading
 	if layer == "foot":
+		var crouch := entrenched or entrench_t > 0.0
+		model.scale.y = lerpf(model.scale.y, 0.74 if crouch else 1.0, minf(dt * 6.0, 1.0))
 		var holder: Node3D = parts.get("holder", model)
 		var sp := spd * (1.5 if (is_civ and _flee_t > 0.0) else 1.0)
 		if moving:
@@ -958,12 +1126,19 @@ func die(attacker: Entity, dtype: String) -> void:
 		return
 	alive = false
 	world.unregister(self)
+	var inside := garrison != null or storming != null
 	if garrison != null:
 		garrison.garrisoned.erase(self)
 		garrison = null
+	if storming != null:
+		storming.stormers.erase(self)
+		storming = null
 	if selected:
 		world.deselect_entity(self)
 	Game.unit_died(self, attacker, dtype)
+	if inside:
+		queue_free()
+		return
 	var vehicle := layer != "foot"
 	if vehicle:
 		world.fx.explosion(position + Vector3(0, 1.2 if layer != "air" else air_h, 0), 3.2 if layer != "air" else 3.8, false)

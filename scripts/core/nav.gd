@@ -190,3 +190,42 @@ func find_path(from: Vector3, to: Vector3, layer: String) -> PackedVector3Array:
 	elif out.size() == 0 and not is_solid_at(to, layer):
 		out.append(Vector3(to.x, 0.0, to.z))
 	return out
+
+## Deckungsposition: freie Zelle neben einer Mauer/einem Gebaeude, die moeglichst zwischen Einheit und Bedrohung liegt.
+## Liefert Vector3.INF, wenn nichts gefunden wird.
+func find_cover(from: Vector3, threat: Vector3, max_cells: int = 11) -> Vector3:
+	var c0 := world_to_cell(from)
+	var best := Vector3.INF
+	var best_sc := 1e9
+	var has_threat := threat.is_finite()
+	for dx in range(-max_cells, max_cells + 1):
+		for dy in range(-max_cells, max_cells + 1):
+			var c := Vector2i(c0.x + dx, c0.y + dy)
+			if not in_bounds(c) or solid[idx(c)] == 1:
+				continue
+			# Nachbar-Hindernisse (8er-Umgebung), Richtung der Deckung
+			var cover_dir := Vector2.ZERO
+			var n_solid := 0
+			for ox in range(-1, 2):
+				for oy in range(-1, 2):
+					if ox == 0 and oy == 0:
+						continue
+					var cc := Vector2i(c.x + ox, c.y + oy)
+					if in_bounds(cc) and solid[idx(cc)] == 1:
+						cover_dir += Vector2(ox, oy)
+						n_solid += 1
+			if n_solid == 0:
+				continue
+			var w := cell_to_world(c)
+			var sc := Vector2(w.x - from.x, w.z - from.z).length()
+			if has_threat:
+				var to_threat := Vector2(threat.x - w.x, threat.z - w.z).normalized()
+				var align := cover_dir.normalized().dot(to_threat) if cover_dir.length() > 0.01 else -1.0
+				if align < 0.35:
+					continue   # Wand liegt nicht zwischen Einheit und Gegner
+				sc -= align * 6.0
+			sc -= minf(float(n_solid), 3.0) * 0.8
+			if sc < best_sc:
+				best_sc = sc
+				best = w
+	return best

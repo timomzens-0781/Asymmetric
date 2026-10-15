@@ -156,7 +156,8 @@ func income_rate(t: int) -> float:
 			base *= 0.6
 		return base
 	var hubs := alive_hubs()
-	return 3.2 * hubs * (1.0 + outrage / 80.0) * mult
+	var donations := 0.012 * world.total_anger() if world != null else 0.0
+	return (3.2 * hubs * (1.0 + outrage / 80.0) + donations) * mult
 
 func alive_hubs() -> int:
 	if world == null:

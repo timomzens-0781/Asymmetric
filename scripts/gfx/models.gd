@@ -958,23 +958,21 @@ static func _fieldhosp(root: Node3D, parts: Dictionary, team: int) -> void:
 	# Boden / Plane
 	mb.box(Vector3(0, 0.05, 0), Vector3(9.0, 0.1, 9.0), Color(0.6, 0.57, 0.5))
 	# Haupt-Zelt (Giebeldach) und zwei Nebenzelte
-	for cfg in [[Vector3(0, 0, -1.2), 6.0, 5.6, 2.9], [Vector3(-3.0, 0, 2.6), 3.2, 3.6, 2.0], [Vector3(2.9, 0, 2.6), 3.2, 3.6, 2.0]]:
+	for cfg in [[Vector3(0, 0, -1.2), 6.0, 5.6, 1.8, 1.3], [Vector3(-3.0, 0, 2.6), 3.2, 3.6, 1.4, 0.9], [Vector3(2.9, 0, 2.6), 3.2, 3.6, 1.4, 0.9]]:
 		var c: Vector3 = cfg[0]
 		var w: float = cfg[1]
 		var l: float = cfg[2]
-		var h: float = cfg[3]
-		var roof_w := sqrt(w * w * 0.25 + h * h)
-		var ang := rad_to_deg(atan2(h, w * 0.5))
-		mb.box(Vector3(c.x, 0.9, c.z), Vector3(w, 1.8, l), white * 0.95)
-		mb.box_t(c + Vector3(-w * 0.25, h * 0.5 + 0.75, 0), Vector3(roof_w, 0.08, l + 0.2), white, Vector3(0, 0, -ang))
-		mb.box_t(c + Vector3(w * 0.25, h * 0.5 + 0.75, 0), Vector3(roof_w, 0.08, l + 0.2), white * 0.92, Vector3(0, 0, ang))
+		var wall_h: float = cfg[3]
+		var rise: float = cfg[4]
+		mb.box(Vector3(c.x, wall_h * 0.5, c.z), Vector3(w, wall_h, l), white * 0.95)
+		mb.gable(Vector3(c.x, wall_h, c.z), w + 0.4, l + 0.4, rise, white)
 		mb.box(Vector3(c.x, 0.5, c.z + l * 0.5 + 0.03), Vector3(w, 0.5, 0.04), blue)
-		mb.box(Vector3(c.x, 0.9, c.z + l * 0.5 + 0.04), Vector3(0.9, 1.5, 0.04), dark)
+		mb.box(Vector3(c.x, wall_h * 0.45, c.z + l * 0.5 + 0.04), Vector3(0.9, wall_h * 0.85, 0.04), dark)
 	# Kreuz am Haupt-Zelt und auf dem Dach
-	mb.box(Vector3(0, 2.4, 1.64), Vector3(1.6, 0.5, 0.05), blue)
-	mb.box(Vector3(0, 2.4, 1.64), Vector3(0.5, 1.6, 0.05), blue)
-	mb.box(Vector3(0, 2.4, 1.67), Vector3(1.3, 0.28, 0.04), white)
-	mb.box(Vector3(0, 2.4, 1.67), Vector3(0.28, 1.3, 0.04), white)
+	mb.box(Vector3(0, 2.3, 1.64), Vector3(0.95, 0.3, 0.05), blue)
+	mb.box(Vector3(0, 2.3, 1.64), Vector3(0.3, 0.95, 0.05), blue)
+	mb.box(Vector3(0, 2.3, 1.67), Vector3(0.75, 0.15, 0.04), white)
+	mb.box(Vector3(0, 2.3, 1.67), Vector3(0.15, 0.75, 0.04), white)
 	# Mast mit Fahne, Generator, Wassertank, Kisten
 	mb.cyl(Vector3(-3.9, 3.0, -3.8), 0.05, 0.05, 6.0, Color(0.75, 0.75, 0.78), 6)
 	mb.box(Vector3(-3.3, 5.4, -3.8), Vector3(1.4, 0.8, 0.03), U.team_color(team))

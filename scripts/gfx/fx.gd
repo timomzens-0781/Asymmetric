@@ -285,7 +285,7 @@ func tracer(from: Vector3, to: Vector3, heavy: bool = false) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	mi.global_position = from + d.normalized() * minf(l, 6.0) * 0.5
-	mi.look_at(to, Vector3.UP)
+	mi.look_at(to, Vector3.UP if absf(d.normalized().y) < 0.98 else Vector3.RIGHT)
 	# Leuchtspur fliegt zum Ziel
 	var tw := create_tween()
 	var dur := clampf(l / 160.0, 0.05, 0.25)

@@ -82,6 +82,23 @@ Aurelias Gegenmittel:
 | Evakuierungskorridor (F9) | 150 | 50 s | Radius 40 m, 45 s: Zivilisten laufen hinaus, kein Nachschub aus Häusern, Verdachtszuwachs ×2,2 für Verbliebene |
 | Presse-Briefing (F10) | 250 | 90 s | Empörung −2,5 %; 60 s lang wirken neue Zuwächse nur zu 70 % |
 
+## 3d. Häuserkampf & Sonderbefehle
+
+* **Gebäude**: Trefferpunkte ×1,5; Schadensmultiplikator gegen Gebäude: Handfeuerwaffe 0,03 (vorher 0,10), Panzerabwehr 0,55 (vorher 0,8),
+  Splitter/Lenkwaffe unverändert – Bomben, Artillerie und Raketen bleiben die schnelle (und teure) Lösung.
+* **Stürmen** (`Unit.cmd_storm`, `Structure._sim_storm`): Angreifer (max. 8) verschwinden im Haus. Alle 2 s eine Kampfrunde:
+  Verteidiger −15·√Angreifer, zufälliger Angreifer −13·√Verteidiger (je ±30 %). Pro Runde 14 % Chance, dass ein Bewohner stirbt
+  (zählt als direkter Beschuss, Empörung). Ohne Verteidiger: Haus durchsucht (kleine Schikane) bzw. **Tunnelknoten gesichert**
+  (`Structure.secure`: Knoten verlässt das Netz, kein Einsturz). Wird das Haus währenddessen zerstört, sterben die Angreifer mit.
+* **KI**: Aurelia stürmt Tunnelknoten (bis zu 3 Versuche), wenn Bewohner > 3 oder Empörung > 25 % und ≥ 3 Infanteristen nahe sind;
+  sonst bombardiert sie wie bisher.
+* **Deckung / Verschanzen**: `entrenched` halbiert Kleinwaffenschaden (0,5 eingegraben, 0,58 an der Mauer), Splitter/Panzerabwehr nur 0,7/0,78.
+  Eingraben dauert 2,4 s, jeder Bewegungsbefehl hebt es auf. Deckung sucht per `Nav.find_cover` eine freie Zelle neben einem Hindernis,
+  das zwischen Einheit und nächstem sichtbaren Gegner liegt.
+* **Patrouille**: Wegpunkte pendeln (Ping-Pong, Index 0 = Startpunkt); bis auf Bewegung verhält sich die Einheit wie bei Angriffsbewegung.
+* **Drohnen**: Flughöhe 30 m (Kampfhubschrauber 21 m), Rüstung `airh`: Kleinwaffen 0, nur Waffen mit `aa` (RPG) zielen auf sie.
+  Kosten 700, 170 TP.
+
 ## 4. Einheiten (Prototyp)
 
 Siehe `scripts/core/data.gd` (`UNITS`, `STRUCTS`, `ABILITIES`). Schadensmatrix `DMG_MULT` (Handfeuerwaffe / Panzerbrechend /

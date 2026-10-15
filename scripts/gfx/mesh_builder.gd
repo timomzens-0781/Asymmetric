@@ -277,6 +277,17 @@ func prism_x(poly: Array, x0: float, x1: float, col: Color, top_col: Color = Col
 		var cc := top_col if (top_col.a > 0.0 and nrm.y > 0.6) else col
 		face([Vector3(x0, a.y, a.x), Vector3(x1, a.y, a.x), Vector3(x1, b.y, b.x), Vector3(x0, b.y, b.x)], outward, cc * (0.9 + 0.1 * nrm.y))
 
+## Satteldach: center = Mitte der Traufenlinie (y = Traufhoehe), Breite w (x), Laenge l (z), Firsthoehe rise ueber der Traufe.
+func gable(center: Vector3, w: float, l: float, rise: float, col: Color, thick: float = 0.07) -> void:
+	var hw := w * 0.5
+	var hl := l * 0.5
+	var roof_w := sqrt(hw * hw + rise * rise)
+	var ang := rad_to_deg(atan2(rise, hw))
+	box_t(center + Vector3(-hw * 0.5, rise * 0.5 + thick * 0.5, 0), Vector3(roof_w + 0.1, thick, l), col, Vector3(0, 0, ang))
+	box_t(center + Vector3(hw * 0.5, rise * 0.5 + thick * 0.5, 0), Vector3(roof_w + 0.1, thick, l), col * 0.92, Vector3(0, 0, -ang))
+	for sz in [-hl, hl]:
+		face([center + Vector3(-hw, 0, sz), center + Vector3(hw, 0, sz), center + Vector3(0, rise, sz)], Vector3(0, 0, signf(sz)), col * 0.9)
+
 ## Quader zwischen zwei Punkten (Streben, Rohre, Kabel). thick = Querschnitt.
 func beam(a: Vector3, b: Vector3, thick: float, col: Color) -> void:
 	var d := b - a

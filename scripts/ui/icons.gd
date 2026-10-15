@@ -144,6 +144,27 @@ static func draw(ci: CanvasItem, kind: String, r: Rect2, c: Color) -> void:
 			ci.draw_line(P.call(0.16, 0.62), P.call(0.16, 0.88), c, lw * 1.4)
 			ci.draw_line(P.call(0.84, 0.62), P.call(0.84, 0.88), c, lw * 1.4)
 			ci.draw_line(P.call(0.5, 0.64), P.call(0.5, 0.96), c, lw)
+		"storm":
+			ci.draw_rect(Rect2(P.call(0.46, 0.2), Vector2(0.4, 0.66) * s), c, false, lw * 1.2)
+			ci.draw_rect(Rect2(P.call(0.62, 0.52), Vector2(0.1, 0.34) * s), c)
+			ci.draw_line(P.call(0.08, 0.5), P.call(0.42, 0.5), c, lw * 1.4)
+			ci.draw_line(P.call(0.28, 0.36), P.call(0.42, 0.5), c, lw * 1.4)
+			ci.draw_line(P.call(0.28, 0.64), P.call(0.42, 0.5), c, lw * 1.4)
+		"patrol":
+			ci.draw_line(P.call(0.18, 0.7), P.call(0.82, 0.7), c, lw * 1.2)
+			ci.draw_line(P.call(0.18, 0.3), P.call(0.82, 0.3), c, lw * 1.2)
+			ci.draw_colored_polygon(PackedVector2Array([P.call(0.9, 0.3), P.call(0.72, 0.18), P.call(0.72, 0.42)]), c)
+			ci.draw_colored_polygon(PackedVector2Array([P.call(0.1, 0.7), P.call(0.28, 0.58), P.call(0.28, 0.82)]), c)
+			ci.draw_circle(P.call(0.5, 0.5), s * 0.08, c)
+		"cover":
+			ci.draw_rect(Rect2(P.call(0.12, 0.2), Vector2(0.22, 0.66) * s), c)
+			ci.draw_rect(Rect2(P.call(0.4, 0.5), Vector2(0.46, 0.36) * s), c)
+			ci.draw_circle(P.call(0.62, 0.38), s * 0.1, c)
+		"dig":
+			ci.draw_arc(P.call(0.5, 0.72), s * 0.38, PI, TAU, 14, c, lw * 1.4)
+			ci.draw_line(P.call(0.1, 0.72), P.call(0.9, 0.72), c, lw * 1.2)
+			ci.draw_circle(P.call(0.5, 0.52), s * 0.1, c)
+			ci.draw_line(P.call(0.2, 0.9), P.call(0.8, 0.9), c, lw)
 		"aid":
 			ci.draw_rect(Rect2(P.call(0.08, 0.34), Vector2(0.54, 0.38) * s), c)
 			ci.draw_rect(Rect2(P.call(0.64, 0.46), Vector2(0.26, 0.26) * s), c)

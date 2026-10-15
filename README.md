@@ -44,6 +44,9 @@ alle Modelle, Texturen, Effekte, Sounds und Musik werden prozedural erzeugt (Kos
 | Einheiten wählen | Linksklick · Rahmen ziehen · `Shift` = hinzufügen · Doppelklick = alle gleichen Typs |
 | Befehl (Bewegen / Angreifen / Gebäude besetzen) | Rechtsklick (`Strg` + Rechtsklick = Feuer erzwingen) |
 | Angriffsbewegung | `T`, dann Linksklick |
+| Patrouille (Wegpunkte; `Shift` = weitere, letzter Klick ohne `Shift`) | `P`, dann Linksklick |
+| Deckung nehmen (zur nächsten Mauer zwischen Einheit und Gegner) / Verschanzen (eingraben) | `K` / `Z` |
+| Haus stürmen (Aurelia-Infanterie; auch Rechtsklick auf ein aktives Haus) | `Y`, dann Haus anklicken |
 | Stopp / Feuer halten | `X` / `H` |
 | Person kontrollieren (Aurelia) | `C`, dann auf die Person klicken |
 | Feuerbefehl Artillerie / Raketenrampe | `F`, dann Bodenziel |
@@ -98,6 +101,15 @@ Opfer der Gegenseite, sowie präzises Vorgehen, Vorwarnungen und Aufklärung.
   mit den Zivilisten darin. Aurelia kann das Gebäude zuvor per **Evakuierungswarnung** (`F4`) räumen lassen.
 * Zielvorschau für Schläge zeigt die geschätzte Zahl **Zivilisten im Radius**, Kameras und sensible Orte (Klinik, Schule).
 
+### Häuserkampf
+
+Besetzte Häuser sind **zäh**: Handfeuerwaffen richten kaum etwas an Gebäuden an, Panzer brauchen lange – wer schnell fertig werden
+will, greift zum Luftschlag (und zahlt in Empörung). Die Alternative ist das **Stürmen** (`Y`): Infanterie dringt ein, kämpft Mann gegen Mann
+(langsam, mit Verlusten, Zivilisten im Haus geraten ins Feuer – aber ohne Einsturz). Gesicherte Tunnelknoten fallen ohne Trümmer aus dem Netz.
+Die Aurelia-KI stürmt, sobald Zivilisten gefährdet sind oder die Empörung steigt.
+**Deckung** (`K`) und **Verschanzen** (`Z`) halbieren den erlittenen Schaden fast; **Patrouille** (`P`) funktioniert für alle Einheiten –
+auch Drohnen überwachen so ein Gebiet. Die Argus-Drohne fliegt jetzt hoch über den Dächern und ist nur noch durch RPGs verwundbar (dafür teurer).
+
 ### Radikalisierung („Wut“ der Viertel)
 
 Die Karte ist in Viertel (Planquadrate A1–H8) unterteilt. **Jeder zivile Tote, jedes zerstörte Wohnhaus, jede getroffene Klinik
@@ -123,7 +135,7 @@ Unterstützung: **Präzisionsschlag** (teuer, chirurgisch), **Artillerie-Salve**
 (gewaltig), **Evakuierungswarnung**, **Aufklärungsflug**, **Beweise veröffentlichen**.
 Hilfsmaßnahmen: **Hilfskonvoi** (F7), **Feldlazarett** (F8), **Evakuierungskorridor** (F9), **Presse-Briefing** (F10) –
 sie senken die Wut in den Vierteln bzw. die Empörung (siehe unten).
-Sieg: alle sieben Tunnelknoten zerstören. Niederlage: Kommandozentrale zerstört oder Empörung 100 %.
+Sieg: alle sieben Tunnelknoten zerstören oder sichern. Niederlage: Kommandozentrale zerstört oder Empörung 100 %.
 
 ### Hadar-Front – Werkzeuge
 
@@ -167,6 +179,11 @@ Startparameter für das Spiel (nach `--`): `autostart=0|1` (Seite), `diff=0|1|2`
 `tod=0..0.85` (Tageszeit), `cam=x,z,dist[,yaw]`.
 
 ---
+
+## Grafik
+
+Im Pausenmenü lässt sich die **Grafikstufe** (Niedrig / Mittel / Hoch) umschalten: Kantenglättung (MSAA 0/2×/4×) sowie Schattenauflösung und -reichweite.
+Fassaden und Boden haben Relief (Fensterlaibungen, Fugen, Gehsteigkanten, Dünenrippel), der Himmel ist ein eigener Shader mit wandernden Wolken.
 
 ## Auswertung
 

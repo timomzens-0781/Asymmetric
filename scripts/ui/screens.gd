@@ -223,6 +223,7 @@ func show_briefing(side: int) -> void:
 # ----------------------------------------------------------------------------- Pause
 var _pause_panel: Panel
 var _pause_sound: Button
+var _pause_gfx: Button
 
 func _build_pause() -> void:
 	pause_root = _new_root()
@@ -244,6 +245,10 @@ func _build_pause() -> void:
 		_pause_sound.text = "Sound: an" if Sfx.sfx_on else "Sound: aus")
 	_pause_sound.position = Vector2(40, y + 104)
 	_sound_btns.append(_pause_sound)
+	_pause_gfx = _button(_pause_panel, "Grafik: Hoch", Vector2(320, 44), func():
+		Gfx.cycle_quality(get_tree().root)
+		_pause_gfx.text = "Grafik: " + Gfx.QUALITY_NAMES[Gfx.quality])
+	_pause_gfx.position = Vector2(380, y + 104)
 	var b3 := _button(_pause_panel, "Hauptmenü", Vector2(320, 44), func(): menu_requested.emit())
 	b3.position = Vector2(40, y + 156)
 	var ctrl := _lbl(_pause_panel, "Steuerung\nWASD/Pfeile/Rand: Kamera · Q/E/Mittelmaus: Drehen · Rad: Zoom\nLinksklick/Rahmen: Wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen\nT: Angriffsbewegung · X: Stopp · H: Feuer halten · G: Tarnen · B: Sprengfalle\nF: Feuerbefehl · V: Gebäude räumen · N: Tunnelreise · R: Einsatzregeln · F1–F10: Unterstützung\nStrg+1–9: Gruppe speichern · 1–9: abrufen · Leertaste: letzter Alarm", 12, Color(0.75, 0.72, 0.64), 2)
@@ -253,6 +258,7 @@ func show_pause() -> void:
 	hide_all()
 	pause_root.visible = true
 	_pause_sound.text = "Sound: an" if Sfx.sfx_on else "Sound: aus"
+	_pause_gfx.text = "Grafik: " + Gfx.QUALITY_NAMES[Gfx.quality]
 	_layout()
 
 # ----------------------------------------------------------------------------- Ende
@@ -301,7 +307,8 @@ func show_end(res: Dictionary, player_team: int) -> void:
 	t += "Tunnelknoten zerstört: %d von %d\n" % [st.hubs_destroyed, World.HUB_COUNT]
 	t += "Verluste – Aurelia: %d · Hadar-Front: %d\n" % [st.adf_lost, st.reb_lost]
 	t += "Raketenabschüsse: %d · Veröffentlichungen: %d · Warnungen: %d · Beweise vorgelegt: %d\n" % [st.launches, st.uploads, st.shots_warned, st.evidence_published]
-	t += "Freiwillige für die Front: %d · Hilfslieferungen: %d · Tunnelreisen: %d" % [st.get("recruits", 0), st.get("aid_delivered", 0), st.get("tunnel_trips", 0)]
+	t += "Freiwillige für die Front: %d · Hilfslieferungen: %d · Tunnelreisen: %d\n" % [st.get("recruits", 0), st.get("aid_delivered", 0), st.get("tunnel_trips", 0)]
+	t += "Häuser gestürmt: %d · Tunnelknoten gesichert: %d" % [st.get("storms", 0), st.get("hubs_secured", 0)]
 	_end_stats.text = t
 	_end_report.setup(res)
 	var rate := ""

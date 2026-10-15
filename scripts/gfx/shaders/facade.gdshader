@@ -60,6 +60,24 @@ float rect(vec2 p, vec2 lo, vec2 hi) {
 	return s.x * s.y;
 }
 
+float srect(vec2 p, vec2 lo, vec2 hi, float w) {
+	vec2 a = smoothstep(lo - w, lo + w, p) * (1.0 - smoothstep(hi - w, hi + w, p));
+	return a.x * a.y;
+}
+
+// Oberflaechen-Relief per Bildschirmableitung (Surface-Gradient-Bump): hgt in Metern, bump = Staerke
+vec3 bump_normal(vec3 nrm, vec3 vpos, float hgt, float bump) {
+	vec3 dpdx = dFdx(vpos);
+	vec3 dpdy = dFdy(vpos);
+	float dhdx = dFdx(hgt);
+	float dhdy = dFdy(hgt);
+	vec3 r1 = cross(dpdy, nrm);
+	vec3 r2 = cross(nrm, dpdx);
+	float det = dot(dpdx, r1);
+	vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+	return normalize(abs(det) * nrm - bump * grad);
+}
+
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
@@ -73,6 +91,7 @@ void fragment() {
 	float spec = 0.08;
 	vec3 emis = vec3(0.0);
 	float v = wpos.y;
+	float hgt = 0.0;
 
 	if (n.y > 0.75) {
 		// ---------- DACH ----------
@@ -224,6 +243,7 @@ void fragment() {
 			col = mix(col, vec3(0.05, 0.04, 0.04), crack * 0.8);
 		}
 	}
+	NORMAL = bump_normal(NORMAL, VERTEX, hgt, 1.0);
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	SPECULAR = spec;

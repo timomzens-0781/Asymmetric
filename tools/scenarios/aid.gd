@@ -21,10 +21,19 @@ static func run(m: Node) -> void:
 	await m.get_tree().create_timer(4.0).timeout
 	print("PERF nodes=", Performance.get_monitor(Performance.OBJECT_NODE_COUNT), " drawcalls=", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), " prims=", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), " fps=", Performance.get_monitor(Performance.TIME_FPS))
 	m._take_shot_now("aid1")
-	rig.dist = 40.0
-	rig.target_dist = 40.0
+	rig.dist = 30.0
+	rig.target_dist = 30.0
+	rig.yaw = 0.35
+	rig.target_yaw = 0.35
 	rig.focus = Vector3(c.x, 0, c.y + 18.0)
 	rig.target_focus = rig.focus
 	await m.get_tree().create_timer(1.0).timeout
 	m._take_shot_now("aid2")
+	var cc := w.city.camp_rect.get_center()
+	rig.focus = Vector3(cc.x, 0, cc.y)
+	rig.target_focus = rig.focus
+	rig.dist = 38.0
+	rig.target_dist = 38.0
+	await m.get_tree().create_timer(1.0).timeout
+	m._take_shot_now("camp")
 	m.get_tree().quit()

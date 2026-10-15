@@ -11,12 +11,12 @@ const KIND_COL := {
 	"level": Color(1.0, 0.35, 0.85), "hub": Color(0.45, 1.0, 0.5), "press": Color(0.85, 0.1, 0.1),
 	"sensitive": Color(0.85, 0.1, 0.1), "strike": Color(1.0, 0.9, 0.3), "aid": Color(0.4, 0.7, 1.0),
 	"corridor": Color(0.4, 0.7, 1.0), "briefing": Color(0.4, 0.7, 1.0), "launch": Color(1.0, 0.55, 0.3),
-	"recruit": Color(0.75, 0.45, 1.0), "aid_attacked": Color(0.5, 1.0, 0.6), "hub_found": Color(0.45, 0.8, 0.45),
+	"recruit": Color(0.75, 0.45, 1.0), "aid_attacked": Color(0.5, 1.0, 0.6), "hub_found": Color(0.45, 0.8, 0.45), "storm": Color(1.0, 0.45, 0.2),
 }
 const KIND_NAME := {
 	"casualties": "Zivile Opfer", "upload": "Veröffentlichung", "evidence": "Beweise", "level": "Eskalationsstufe",
 	"hub": "Tunnelknoten zerstört", "press": "Presse / Klinik / Schule", "strike": "Schlag angefordert", "aid": "Hilfsmaßnahme",
-	"launch": "Raketenabschuss", "recruit": "Freiwillige", "aid_attacked": "Hilfe angegriffen", "hub_found": "Knoten entdeckt",
+	"launch": "Raketenabschuss", "recruit": "Freiwillige", "aid_attacked": "Hilfe angegriffen", "hub_found": "Knoten entdeckt", "storm": "Häuserkampf",
 }
 const CAUSE_COL := {
 	"strike": Color(1.0, 0.55, 0.2), "collapse": Color(0.9, 0.35, 0.3), "direct": Color(1.0, 0.25, 0.25),

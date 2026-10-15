@@ -38,6 +38,18 @@ float fbm(vec2 p) {
 	return v;
 }
 
+vec3 bump_normal(vec3 nrm, vec3 vpos, float hgt, float bump) {
+	vec3 dpdx = dFdx(vpos);
+	vec3 dpdy = dFdy(vpos);
+	float dhdx = dFdx(hgt);
+	float dhdy = dFdy(hgt);
+	vec3 r1 = cross(dpdy, nrm);
+	vec3 r2 = cross(nrm, dpdx);
+	float det = dot(dpdx, r1);
+	vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+	return normalize(abs(det) * nrm - bump * grad);
+}
+
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -95,6 +107,13 @@ void fragment() {
 	vec3 burnt = vec3(0.04, 0.035, 0.03);
 	col = mix(col, burnt, s * 0.85);
 
+	// Relief: Duenenrippel, Kieselsteine, Gehsteigkante, Pflasterfugen, Risse, Krater
+	float hgt = ripple * 0.05 * (1.0 - paved) * (1.0 - road) + pebbles * 0.04 + n2 * 0.015;
+	hgt += paved * (1.0 - road) * 0.12;
+	hgt -= paved * (1.0 - road) * (1.0 - tile) * 0.012;
+	hgt -= road * crack * 0.025;
+	hgt -= s * 0.22;
+	NORMAL = bump_normal(NORMAL, VERTEX, hgt, 1.0);
 	ALBEDO = col;
 	ROUGHNESS = mix(0.95, 0.8, road);
 	SPECULAR = 0.05;

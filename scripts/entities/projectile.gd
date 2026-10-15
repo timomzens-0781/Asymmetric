@@ -107,7 +107,7 @@ func _process(dt: float) -> void:
 				position = tp
 				_impact()
 				return
-			look_at_from_position(position, position + to, Vector3.UP)
+			_face(position, to)   # Spitze liegt auf +Z
 			position += to.normalized() * step
 		"ballistic":
 			t += dt
@@ -116,7 +116,7 @@ func _process(dt: float) -> void:
 			var y := lerpf(start.y, 0.0, k) + sin(k * PI) * arc_h
 			var np := Vector3(flat.x, y, flat.z)
 			if np.distance_to(position) > 0.01:
-				look_at_from_position(np, np + (np - position), Vector3.UP)
+				_face(np, np - position)
 			position = np
 			if k >= 1.0:
 				_impact()
@@ -135,10 +135,18 @@ func _impact() -> void:
 	_done = true
 	var splash: float = w.get("splash", 2.0)
 	var dtype: String = w.get("type", "he")
-	world.explode(position, splash, w.get("damage", 50.0), dtype, team, shooter, {"proj": w.get("proj", "")})
+	var shooter_ok: Entity = shooter if (shooter != null and is_instance_valid(shooter)) else null   # Schuetze kann inzwischen gefallen und freigegeben sein
+	world.explode(position, splash, w.get("damage", 50.0), dtype, team, shooter_ok, {"proj": w.get("proj", "")})
 	if _trail != null and is_instance_valid(_trail):
 		_trail.emitting = false
 		# Spur bleibt kurz stehen, dann freigeben
 		_trail.reparent(world.fx)
 		get_tree().create_timer(1.2).timeout.connect(_trail.queue_free)
 	queue_free()
+
+## Richtet das Geschoss entlang der Flugrichtung aus (Spitze = +Z); robust gegen senkrechte Flugbahnen.
+func _face(from: Vector3, dir: Vector3) -> void:
+	if dir.length() < 0.001:
+		return
+	var up := Vector3.UP if absf(dir.normalized().y) < 0.98 else Vector3.RIGHT
+	look_at_from_position(from, from - dir, up)

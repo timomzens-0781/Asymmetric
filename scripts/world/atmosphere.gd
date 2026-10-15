@@ -5,15 +5,8 @@ extends RefCounted
 static func setup(parent: Node, golden: float = 0.0) -> Dictionary:
 	var env := Environment.new()
 	var sky := Sky.new()
-	var sm := ProceduralSkyMaterial.new()
-	sm.sky_top_color = Color(0.32, 0.5, 0.78)
-	sm.sky_horizon_color = Color(0.86, 0.78, 0.64)
-	sm.ground_horizon_color = Color(0.82, 0.72, 0.58)
-	sm.ground_bottom_color = Color(0.55, 0.47, 0.36)
-	sm.sky_curve = 0.12
-	sm.ground_curve = 0.06
-	sm.sun_angle_max = 25.0
-	sm.sun_curve = 0.1
+	var sm := ShaderMaterial.new()
+	sm.shader = load("res://scripts/gfx/shaders/sky.gdshader")
 	sky.sky_material = sm
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
@@ -60,13 +53,18 @@ static func apply_time(a: Dictionary, k: float) -> void:
 	k = clampf(k, 0.0, 1.0)
 	var env: Environment = a.env
 	var sun: DirectionalLight3D = a.sun
-	var sm: ProceduralSkyMaterial = a.sky
+	var sm: ShaderMaterial = a.sky
 	sun.rotation_degrees = Vector3(lerpf(-42.0, -13.0, k), lerpf(38.0, 58.0, k), 0.0)
 	sun.light_color = Color(1.0, 0.93, 0.8).lerp(Color(1.0, 0.58, 0.3), k)
 	sun.light_energy = lerpf(1.45, 1.05, k)
-	sm.sky_top_color = Color(0.32, 0.5, 0.78).lerp(Color(0.16, 0.24, 0.45), k)
-	sm.sky_horizon_color = Color(0.86, 0.78, 0.64).lerp(Color(0.95, 0.52, 0.28), k)
-	sm.ground_horizon_color = sm.sky_horizon_color
+	var horizon := Color(0.86, 0.78, 0.64).lerp(Color(0.95, 0.52, 0.28), k)
+	sm.set_shader_parameter("top_color", Color(0.32, 0.5, 0.78).lerp(Color(0.16, 0.24, 0.45), k))
+	sm.set_shader_parameter("horizon_color", horizon)
+	sm.set_shader_parameter("ground_color", Color(0.6, 0.52, 0.4).lerp(Color(0.35, 0.22, 0.17), k))
+	sm.set_shader_parameter("sun_color", sun.light_color)
+	sm.set_shader_parameter("cloud_light", Color(1.0, 0.98, 0.94).lerp(Color(1.0, 0.66, 0.45), k))
+	sm.set_shader_parameter("cloud_dark", Color(0.55, 0.6, 0.68).lerp(Color(0.42, 0.28, 0.38), k))
+	sm.set_shader_parameter("sun_dir", sun.global_transform.basis.z if sun.is_inside_tree() else Basis.from_euler(sun.rotation).z)
 	env.ambient_light_energy = lerpf(0.6, 0.5, k)
 	env.fog_light_color = Color(0.86, 0.78, 0.65).lerp(Color(0.85, 0.5, 0.35), k)
 	env.tonemap_exposure = lerpf(0.82, 0.92, k)

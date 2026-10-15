@@ -58,6 +58,7 @@ func _ready() -> void:
 	await _test_no_fly()
 	await _test_tunnel()
 	await _test_anger_and_aid()
+	await _test_orders_and_storm()
 	print("== Ergebnis: %d bestanden, %d fehlgeschlagen ==" % [passes, fails])
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -338,3 +339,107 @@ func _test_anger_and_aid() -> void:
 	await _fresh()
 	Game.report_event_outrage(Vector3(0, 0, 0), 10.0, "Test", "press")
 	_check("Ursachen werden erfasst", float(Game.attrib.get("press", 0.0)) > 1.0, "attrib=%s" % str(Game.attrib))
+
+func _test_orders_and_storm() -> void:
+	print("-- Sonderbefehle, Haeuserkampf, Drohnen")
+	# Patrouille
+	await _fresh()
+	var a := _free_spot(30, 0)
+	var b := _free_spot(30, -40)
+	var p := world.spawn_unit("adf_rifle", 0, a)
+	p.cmd_patrol([b])
+	await _wait(14.0)
+	var reached_b: bool = U.dist2d(p.position, b) < 15.0 or p.patrol_dir == -1
+	_check("Patrouille erreicht Wegpunkt", reached_b, "pos=%s dir=%d" % [p.position, p.patrol_dir])
+	await _wait(25.0)
+	_check("Patrouille pendelt weiter", p.order_type == "patrol" and p.alive)
+	# Verschanzen
+	var q := world.spawn_unit("adf_rifle", 0, _free_spot(40, 10))
+	q.cmd_entrench()
+	await _wait(3.5)
+	var hp0: float = q.hp
+	_check("Verschanzt nach 2,4 s", q.entrenched and q.cover_kind == "dug")
+	q.take_damage(40.0, null, "bullet", q.position)
+	_check("Deckung halbiert Schaden", absf((hp0 - q.hp) - 20.0) < 0.5, "dmg=%.1f" % (hp0 - q.hp))
+	q.cmd_move(_free_spot(40, 20))
+	_check("Bewegung hebt Verschanzen auf", not q.entrenched)
+	# Deckung nehmen
+	await _fresh()
+	var house: Structure = null
+	for st in world.structures:
+		if st.team == U.TEAM_CIV and st.kind_class == "house" and st.position.x > -30.0 and st.position.x < 60.0 and st.position.z > -30.0 and st.position.z < 30.0 and st.hx >= 4.0:
+			house = st
+			break
+	var pos_c := world.nav.nearest_free_pos(house.position + Vector3(house.hx + 6.0, 0, 0), "foot", 6)
+	var sol := world.spawn_unit("adf_rifle", 0, pos_c)
+	var foe := world.spawn_unit("reb_fighter", 1, pos_c + Vector3(25.0, 0, 0))
+	foe.hold = true
+	foe.cmd_stop()
+	await _wait(0.5)
+	foe.reveal(60.0)
+	foe.ident_mask |= 1
+	await _wait(0.5)
+	var ok_cover := sol.cmd_take_cover()
+	await _wait(8.0)
+	_check("Deckung gefunden und bezogen", ok_cover and sol.entrenched and sol.cover_kind == "wall", "ok=%s entrenched=%s" % [ok_cover, sol.entrenched])
+	# Haeuserkampf
+	await _fresh()
+	var h2: Structure = null
+	for st in world.structures:
+		if st.team == U.TEAM_CIV and st.kind_class == "house" and st.position.x > -30.0 and st.position.z > -30.0 and st.position.z < 30.0 and st.hx >= 4.5 and st.hz >= 4.5 and not st.hub:
+			h2 = st
+			break
+	var defs: Array = []
+	for i in range(2):
+		var f := world.spawn_unit("reb_fighter", 1, h2.door_pos(h2.position))
+		f.enter_garrison(h2)
+		defs.append(f)
+	var occ0 := h2.occupants
+	var squad: Array = []
+	for i in range(6):
+		squad.append(world.spawn_unit("adf_rifle", 0, world.nav.nearest_free_pos(h2.position + Vector3(h2.hx + 8.0 + i, 0, 0), "foot", 8)))
+	var n_storm := 0
+	for u in squad:
+		if u.cmd_storm(h2):
+			n_storm += 1
+	_check("Sechs Soldaten stuermen", n_storm == 6)
+	await _wait(8.0)
+	_check("Haeuserkampf beginnt", h2.stormers.size() > 0 or (not defs[0].alive and not defs[1].alive), "stormers=%d" % h2.stormers.size())
+	await _wait(40.0)
+	var alive_def := 0
+	for d in defs:
+		if is_instance_valid(d) and d.alive:
+			alive_def += 1
+	var alive_att := 0
+	for u in squad:
+		if is_instance_valid(u) and u.alive:
+			alive_att += 1
+	_check("Verteidiger ausgeschaltet", alive_def == 0, "left=%d" % alive_def)
+	_check("Haus steht noch", h2.alive and h2.stormers.is_empty())
+	_check("Angreifer haben Verluste, aber siegen", alive_att >= 2 and alive_att <= 6, "alive=%d" % alive_att)
+	_check("Angreifer wieder sichtbar", squad.any(func(u): return is_instance_valid(u) and u.alive and u.visible and u.storming == null))
+	# Tunnelknoten sichern
+	await _fresh()
+	var hub: Structure = world.hubs[0]
+	var def_h := world.spawn_unit("reb_fighter", 1, hub.door_pos(hub.position))
+	def_h.enter_garrison(hub)
+	var squad2: Array = []
+	for i in range(6):
+		squad2.append(world.spawn_unit("adf_rifle", 0, world.nav.nearest_free_pos(hub.position + Vector3(hub.hx + 8.0 + i, 0, 0), "foot", 8)))
+	for u in squad2:
+		u.cmd_storm(hub)
+	var hubs0: int = Game.alive_hubs()
+	await _wait(45.0)
+	_check("Tunnelknoten gesichert (ohne Einsturz)", hub.alive and not hub.hub and Game.alive_hubs() == hubs0 - 1, "hubs %d -> %d" % [hubs0, Game.alive_hubs()])
+	# Drohnen
+	await _fresh()
+	var dr := world.spawn_unit("adf_drone", 0, _free_spot(40, 10))
+	var rifle_reb := world.spawn_unit("reb_fighter", 1, dr.position + Vector3(8, 0, 0))
+	var rpg := world.spawn_unit("reb_rpg", 1, dr.position + Vector3(14, 0, 0))
+	await _wait(0.2)
+	_check("Drohne fliegt hoch", dr.air_h >= 28.0, "air_h=%.0f" % dr.air_h)
+	_check("Gewehre ignorieren Drohne", not world.can_auto_target(rifle_reb, dr))
+	_check("RPG kann Drohne bekaempfen", world.can_auto_target(rpg, dr))
+	var dhp: float = dr.hp
+	dr.take_damage(100.0, rifle_reb, "bullet", dr.position)
+	_check("Kleinwaffen richten nichts an", dr.hp == dhp)

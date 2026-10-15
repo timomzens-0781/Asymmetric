@@ -447,6 +447,27 @@ func _build_card_items() -> Array:
 						if u.hold:
 							u.target = null,
 			"toggle": "hold"})
+	if units.any(func(u): return u.can_patrol()):
+		items.append({"icon": "patrol", "label": "Patrouille", "hotkey": "P", "tip_title": "Patrouille [P]",
+			"tip": "Wegpunkt(e) anklicken (Shift: weitere Punkte, letzter Klick ohne Shift). Die Einheiten pendeln zwischen Startpunkt und Wegpunkten und bekämpfen unterwegs erkannte Feinde. Drohnen überwachen so ein Gebiet.",
+			"action": func(): player.set_mode("patrol"), "toggle": "patrol"})
+	if team == U.TEAM_ADF and units.any(func(u): return u.can_cover()):
+		items.append({"icon": "storm", "label": "Stürmen", "hotkey": "Y", "tip_title": "Haus stürmen [Y]",
+			"tip": "Infanterie dringt in ein besetztes Haus ein und kämpft Mann gegen Mann. Langsam und verlustreich, aber ohne Einsturz – Zivilisten im Haus sind weit weniger gefährdet als bei Beschuss. Tunnelknoten werden so gesichert.",
+			"action": func(): player.set_mode("storm"), "toggle": "storm"})
+	if units.any(func(u): return u.can_cover()):
+		items.append({"icon": "cover", "label": "Deckung", "hotkey": "K", "tip_title": "Deckung nehmen [K]",
+			"tip": "Läuft zur nächsten Mauer, die zwischen Einheit und Gegner liegt, und geht dort in Deckung: deutlich weniger Schaden.",
+			"action": func():
+				for u in units:
+					if is_instance_valid(u) and u.can_cover():
+						u.cmd_take_cover()})
+		items.append({"icon": "dig", "label": "Verschanzen", "hotkey": "Z", "tip_title": "Verschanzen [Z]",
+			"tip": "Gräbt sich an Ort und Stelle ein (2,4 s) und erleidet danach nur noch etwa die Hälfte des Schadens. Jeder Bewegungsbefehl hebt es auf.",
+			"action": func():
+				for u in units:
+					if is_instance_valid(u) and u.can_cover():
+						u.cmd_entrench()})
 	if units.any(func(u): return u.detect_range > 0.0 and u.layer == "foot"):
 		items.append({"icon": "eye", "label": "Kontrolle", "hotkey": "C", "tip_title": "Person kontrollieren [C]", "tip": "Ein Soldat geht zur gewählten Person und überprüft sie 2 Sekunden. Entlarvt getarnte Kämpfer sicher – belästigt aber Zivilisten.",
 			"action": func(): player.set_mode("check"), "toggle": "check"})
@@ -522,6 +543,10 @@ func _update_card_states() -> void:
 			act = player.mode == "check"
 		if it.get("toggle", "") == "tunnel":
 			act = player.mode == "tunnel"
+		if it.get("toggle", "") == "patrol":
+			act = player.mode == "patrol"
+		if it.get("toggle", "") == "storm":
+			act = player.mode == "storm"
 		if b.enabled != en or b.active != act:
 			b.enabled = en
 			b.active = act

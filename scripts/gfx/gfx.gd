@@ -3,6 +3,38 @@ extends RefCounted
 ## Materialien, Texturen und Mesh-Helfer (alles prozedural, keine externen Assets).
 
 static var _cache: Dictionary = {}
+static var quality := 2          # 0 niedrig, 1 mittel, 2 hoch
+
+const QUALITY_NAMES := ["Niedrig", "Mittel", "Hoch"]
+
+## Grafikstufe anwenden: Kantenglaettung (MSAA), Schattenqualitaet und -reichweite.
+static func apply_quality(root: Window, sun: DirectionalLight3D = null) -> void:
+	match quality:
+		0:
+			root.msaa_3d = Viewport.MSAA_DISABLED
+			RenderingServer.directional_shadow_atlas_set_size(2048, true)
+			RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
+		1:
+			root.msaa_3d = Viewport.MSAA_2X
+			RenderingServer.directional_shadow_atlas_set_size(2048, true)
+			RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM)
+		_:
+			root.msaa_3d = Viewport.MSAA_4X
+			RenderingServer.directional_shadow_atlas_set_size(4096, true)
+			RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_HIGH)
+	if sun != null and is_instance_valid(sun):
+		# Jede Kaskade rendert die Szene erneut: bei "Hoch" zwei Kaskaden, aber hoehere Aufloesung und Reichweite
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sun.directional_shadow_max_distance = [110.0, 170.0, 230.0][clampi(quality, 0, 2)]
+		sun.directional_shadow_split_1 = 0.22 if quality >= 2 else 0.28
+		sun.directional_shadow_blend_splits = quality >= 1
+
+static func cycle_quality(root: Window) -> void:
+	quality = (quality + 1) % 3
+	var sun: DirectionalLight3D = null
+	if Game.world != null and Game.world.atmos.has("sun"):
+		sun = Game.world.atmos.sun
+	apply_quality(root, sun)
 
 ## Standardmaterial fuer Vertex-Color-Meshes.
 static func vcol_mat(rough: float = 0.82, metal: float = 0.05) -> Material:

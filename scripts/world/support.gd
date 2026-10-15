@@ -88,7 +88,7 @@ func _airstrike(pos: Vector3) -> void:
 		var jet := _jet_model()
 		jet.position = pos - dir * lead + side * lat + Vector3(0, 55, 0)
 		world.add_child(jet)
-		jet.look_at(jet.position + dir, Vector3.UP)
+		jet.look_at(jet.position - dir, Vector3.UP)   # Modell blickt nach +Z, look_at richtet -Z aus
 		jet.scale = Vector3(1.4, 1.4, 1.4)
 		world.fx.rocket_trail(jet, 2.2)
 		var tw := create_tween()

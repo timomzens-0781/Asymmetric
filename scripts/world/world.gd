@@ -50,6 +50,8 @@ func build(seed_value: int, side: int, demo: bool, tod: float = 0.0) -> void:
 	tod_start = tod
 	atmos = Atmosphere.setup(self)
 	Atmosphere.apply_time(atmos, tod)
+	if is_inside_tree():
+		Gfx.apply_quality(get_tree().root, atmos.sun)
 	nav = Nav.new()
 	city = City.new()
 	city.name = "City"
@@ -426,7 +428,7 @@ func tunnel_between(a: Structure, b: Structure) -> Dictionary:
 	return {}
 
 func tunnel_active(t: Dictionary) -> bool:
-	return is_instance_valid(t.a) and is_instance_valid(t.b) and t.a.alive and t.b.alive
+	return is_instance_valid(t.a) and is_instance_valid(t.b) and t.a.alive and t.b.alive and t.a.hub and t.b.hub
 
 func tunnel_links(h: Structure) -> Array:
 	var out: Array = []
@@ -778,7 +780,7 @@ func can_auto_target(att: Entity, e: Entity) -> bool:
 	var eu := e as Unit
 	if eu == null:
 		return false
-	if eu.press or eu.garrison != null:
+	if eu.press or eu.garrison != null or eu.storming != null:
 		return false
 	if t == U.TEAM_ADF:
 		if eu.team != U.TEAM_REB:
@@ -796,6 +798,11 @@ func _weapon_ok(att: Entity, e: Entity) -> bool:
 		return false
 	for w in ws:
 		if e is Unit and (e as Unit).layer == "air":
+			# Hoch fliegende Drohnen erreichen nur Luftabwehr (RPG), nicht Gewehre oder MGs
+			if (e as Unit).def.get("high", false):
+				if w.get("aa", false):
+					return true
+				continue
 			if w.get("air", false):
 				return true
 			continue
@@ -820,7 +827,7 @@ func is_valid_manual_target(att: Entity, e: Entity) -> bool:
 		return e.detected or att.team == U.TEAM_REB
 	if e is Unit:
 		var eu := e as Unit
-		if eu.garrison != null:
+		if eu.garrison != null or eu.storming != null:
 			return false
 		return eu.seen_by(att.team)
 	return false
@@ -895,7 +902,7 @@ func explode(pos: Vector3, radius: float, damage: float, dtype: String, team: in
 			continue
 		var frac := clampf(1.0 - maxf(d, 0.0) / maxf(radius, 0.01), 0.0, 1.0)
 		var dmg := damage * (0.3 + 0.7 * frac)
-		if e is Unit and (e as Unit).garrison != null:
+		if e is Unit and ((e as Unit).garrison != null or (e as Unit).storming != null):
 			continue
 		e.take_damage(dmg, attacker, dtype, pos)
 		if e is Civilian:
@@ -946,6 +953,11 @@ func structure_destroyed(s: Structure, attacker: Entity, dtype: String) -> void:
 		(u as Unit).ungarrison()
 		u.take_damage(9999.0, attacker, "he", s.position)
 	s.garrisoned.clear()
+	for st in s.stormers.duplicate():
+		if is_instance_valid(st) and st.alive:
+			(st as Unit).storming = null
+			(st as Unit).take_damage(9999.0, attacker, "he", s.position)
+	s.stormers.clear()
 	fx.collapse(s.position, s.size)
 	Sfx.play_at("collapse", s.position)
 	shake_at(s.position, clampf(s.radius * 0.1, 0.4, 1.4))

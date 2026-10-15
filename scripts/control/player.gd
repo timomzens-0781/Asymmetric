@@ -10,7 +10,8 @@ var world: World
 var rig: RtsCamera
 var team := 0
 var selected: Array = []
-var mode := "normal"          # normal | attack_move | ability | fire_ground | check | tunnel
+var mode := "normal"          # normal | attack_move | ability | fire_ground | check | tunnel | patrol | storm
+var patrol_wps: Array = []     # waehrend der Patrouillen-Eingabe gesetzte Wegpunkte
 var ability_id := ""
 var groups: Dictionary = {}
 var dragging := false
@@ -262,6 +263,33 @@ func _left_press(mb: InputEventMouseButton) -> void:
 				Game.message("Tunnelreise nicht möglich: keine Verbindung, kein Platz, keine Besatzung – oder die Kämpfer ruhen noch", "warn", team)
 		set_mode("normal")
 		return
+	if mode == "storm":
+		var tgt_s := hover_entity
+		if tgt_s is Structure and (tgt_s as Structure).kind_class in ["hospital", "school"]:
+			Game.message("Kliniken und Schulen werden nicht gestürmt!", "warn", team)
+			Sfx.play_ui("error")
+		elif tgt_s is Structure and (tgt_s as Structure).kind_class == "house" and tgt_s.team != team:
+			var n_st := 0
+			for u in _own_units():
+				if u.layer == "foot" and u.cmd_storm(tgt_s as Structure):
+					n_st += 1
+			if n_st > 0:
+				world.fx.ring_ping(tgt_s.position, tgt_s.radius + 1.5, Color(1.0, 0.35, 0.3, 0.9), 0.9)
+				Sfx.play_ui("click")
+				Game.message("%d Soldaten stürmen das Haus" % n_st, "info", team)
+			else:
+				Sfx.play_ui("error")
+		set_mode("normal")
+		return
+	if mode == "patrol":
+		patrol_wps.append(hover_ground)
+		world.fx.ring_ping(hover_ground, 2.2, Color(0.4, 0.8, 1.0, 0.9), 0.7)
+		Sfx.play_ui("click", -6.0)
+		if Input.is_key_pressed(KEY_SHIFT):
+			return     # weitere Wegpunkte; Klick ohne Shift beendet die Eingabe
+		_issue_patrol(_own_units(), patrol_wps)
+		set_mode("normal")
+		return
 	if mode == "attack_move":
 		var us := _own_units()
 		_formation_order(us, hover_ground, true)
@@ -392,8 +420,15 @@ func _right_click(mb: InputEventMouseButton) -> void:
 	if e != null and e.team != team and (force or _is_attackable(e)):
 		var armed: Array = units.filter(func(u): return not u.weapons.is_empty())
 		if not armed.is_empty():
+			var storm_it: bool = e is Structure and (e as Structure).kind_class == "house" and team == U.TEAM_ADF
+			var n_storm := 0
 			for u in armed:
-				u.cmd_attack(e)
+				if storm_it and u.layer == "foot" and u.cmd_storm(e as Structure):
+					n_storm += 1
+				else:
+					u.cmd_attack(e)
+			if n_storm > 0:
+				Game.message("%d Soldaten stürmen das Haus" % n_storm, "info", team)
 			world.fx.ring_ping(e.position, maxf(e.radius * 1.4, 2.0), Color(1.0, 0.3, 0.25, 0.9), 0.6)
 			Sfx.play_ui("click", -6.0)
 			return
@@ -408,6 +443,29 @@ func _right_click(mb: InputEventMouseButton) -> void:
 			return
 	_formation_order(units, hover_ground, false)
 	world.fx.ring_ping(hover_ground, 1.8, Color(0.4, 1.0, 0.5, 0.9), 0.6)
+
+## Patrouille: jede Einheit pendelt zwischen ihrem Startpunkt und den Wegpunkten (Gruppenform bleibt erhalten).
+func _issue_patrol(units: Array, wps: Array) -> void:
+	var can: Array = units.filter(func(u): return u.can_patrol())
+	if can.is_empty() or wps.is_empty():
+		return
+	var cen := Vector3.ZERO
+	for u in can:
+		cen += u.position
+	cen /= can.size()
+	for u in can:
+		var off: Vector3 = (u.position - cen)
+		off.y = 0.0
+		if off.length() > 7.0:
+			off = off.normalized() * 7.0
+		var pts: Array = []
+		for w in wps:
+			var p: Vector3 = (w as Vector3) + (off if u.layer != "air" else Vector3.ZERO)
+			if u.layer != "air":
+				p = world.nav.nearest_free_pos(p, u.grid, 8)
+			pts.append(p)
+		u.cmd_patrol(pts)
+	Game.message("Patrouille: %d Einheiten, %d Wegpunkt(e)" % [can.size(), wps.size()], "info", team)
 
 func _is_attackable(e: Entity) -> bool:
 	if e is Structure:
@@ -547,6 +605,8 @@ func _centroid(arr: Array) -> Vector3:
 	return c / maxf(arr.size(), 1)
 
 func set_mode(m: String, id: String = "") -> void:
+	if m != "patrol":
+		patrol_wps.clear()
 	mode = m
 	ability_id = id
 	if m == "normal":

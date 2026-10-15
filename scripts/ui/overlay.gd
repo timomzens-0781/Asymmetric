@@ -44,6 +44,7 @@ func _draw() -> void:
 					draw_string(font, p + Vector2(-5, 5), "✕" if false else "x", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.3, 0.2))
 					draw_arc(p, 8, 0, TAU, 12, Color(1.0, 0.3, 0.2), 2.0)
 	_draw_tunnels(font, vp, pt)
+	_draw_patrols(vp)
 	_draw_anger(font, vp)
 	_draw_fire_alerts(font)
 	# Auswahlrahmen
@@ -65,10 +66,46 @@ func _draw() -> void:
 	# Zielinfo am Cursor
 	if player.mode == "ability" and not player.target_info.is_empty():
 		_draw_target_info(font)
-	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move" or player.mode == "check" or player.mode == "tunnel":
+	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move" or player.mode == "check" or player.mode == "tunnel" or player.mode == "patrol" or player.mode == "storm":
 		var m := get_viewport().get_mouse_position()
-		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken", "tunnel": "Tunnel: Ziel-Knoten anklicken"}[player.mode]
+		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken", "tunnel": "Tunnel: Ziel-Knoten anklicken", "patrol": "Patrouille: Wegpunkt klicken (Shift = weitere)", "storm": "Stürmen: Haus anklicken"}[player.mode]
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
+
+## Patrouillenrouten der gewaehlten Einheiten und die gerade gesetzten Wegpunkte
+func _draw_patrols(vp: Rect2) -> void:
+	var col := Color(0.45, 0.85, 1.0, 0.85)
+	for e in player.selected:
+		if not is_instance_valid(e) or not (e is Unit):
+			continue
+		var u := e as Unit
+		if u.order_type != "patrol" or u.patrol_pts.size() < 2:
+			continue
+		var h := (u.air_h + 0.4) if u.layer == "air" else 0.4
+		var prev := Vector2.ZERO
+		var have_prev := false
+		for i in range(u.patrol_pts.size()):
+			var wp: Vector3 = (u.patrol_pts[i] as Vector3) + Vector3(0, h, 0)
+			if rig.cam.is_position_behind(wp):
+				have_prev = false
+				continue
+			var sp := _sp(wp)
+			if have_prev:
+				draw_dashed_line(prev, sp, col, 1.6, 8.0)
+			draw_circle(sp, 4.0 if i > 0 else 3.0, col)
+			prev = sp
+			have_prev = true
+	if player.mode == "patrol" and not player.patrol_wps.is_empty():
+		var prev2 := Vector2.ZERO
+		var first := true
+		for w in player.patrol_wps:
+			var sp2 := _sp((w as Vector3) + Vector3(0, 0.4, 0))
+			if not first:
+				draw_dashed_line(prev2, sp2, Color(1.0, 0.9, 0.4, 0.9), 2.0, 8.0)
+			draw_circle(sp2, 5.0, Color(1.0, 0.9, 0.4, 0.95))
+			prev2 = sp2
+			first = false
+		var mp := get_viewport().get_mouse_position()
+		draw_dashed_line(prev2, mp, Color(1.0, 0.9, 0.4, 0.5), 1.5, 8.0)
 
 func _draw_anger(font: Font, vp: Rect2) -> void:
 	if rig.dist > 150.0:
@@ -232,6 +269,12 @@ func _draw_unit(u: Unit, font: Font, vp: Rect2, pt: int, near: bool) -> void:
 	elif pt == U.TEAM_ADF and u.team == U.TEAM_REB and u.exposed_t > 0.0:
 		draw_colored_polygon(PackedVector2Array([p + Vector2(0, yoff - 7), p + Vector2(7, yoff), p + Vector2(0, yoff + 7), p + Vector2(-7, yoff)]), Color(1.0, 0.25, 0.2))
 		draw_string(font, p + Vector2(-4, yoff + 5), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1))
+	# Deckung / Verschanzen
+	if own and (u.entrenched or u.entrench_t > 0.0):
+		var sc := p + Vector2(14, 6)
+		var shc := Color(0.5, 0.8, 1.0, 0.95) if u.entrenched else Color(0.9, 0.8, 0.4, 0.95)
+		draw_colored_polygon(PackedVector2Array([sc + Vector2(-5, -6), sc + Vector2(5, -6), sc + Vector2(5, 1), sc + Vector2(0, 7), sc + Vector2(-5, 1)]), shc)
+		draw_polyline(PackedVector2Array([sc + Vector2(-5, -6), sc + Vector2(5, -6), sc + Vector2(5, 1), sc + Vector2(0, 7), sc + Vector2(-5, 1), sc + Vector2(-5, -6)]), Color(0, 0, 0, 0.7), 1.0)
 	# Verteidigung: Aufbau-Status des Raketenwerfers
 	if own and u.is_launcher and u._deploy > 0.05 and u._deploy < 0.99:
 		_bar(p + Vector2(0, 8), 28.0, u._deploy, Color(0.9, 0.7, 0.2))

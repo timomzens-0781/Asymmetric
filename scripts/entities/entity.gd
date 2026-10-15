@@ -39,7 +39,7 @@ func take_damage(amount: float, attacker: Entity, dtype: String, from_pos: Vecto
 	if not alive:
 		return
 	var mult: float = Data.DMG_MULT.get(dtype, Data.DMG_MULT["bullet"]).get(armor, 1.0)
-	var dmg := amount * mult
+	var dmg := amount * mult * _dmg_mult(dtype)
 	if dmg <= 0.0:
 		return
 	hp -= dmg
@@ -51,6 +51,10 @@ func take_damage(amount: float, attacker: Entity, dtype: String, from_pos: Vecto
 	if hp <= 0.0:
 		hp = 0.0
 		die(attacker, dtype)
+
+## Zusatzfaktor auf erlittenen Schaden (z. B. Deckung); von Unterklassen ueberschrieben
+func _dmg_mult(_dtype: String) -> float:
+	return 1.0
 
 func _on_damaged(_dmg: float, _attacker: Entity, _dtype: String) -> void:
 	pass

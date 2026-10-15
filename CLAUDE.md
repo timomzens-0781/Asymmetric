@@ -37,6 +37,9 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
   Feldlazarett); Einheiten-Seite: `Unit.cmd_tunnel`, `tunnel_t`. Hilfsfähigkeiten in `world/support.gd`.
 * Auswertung: `Game.log_event`, `attrib`, `outrage_samples` → `ui/end_report.gd`. Empörung immer mit Ursache erhöhen
   (`add_outrage(v, silent, "strike"|…)` bzw. `add_footage(…, cause)`).
+* Haeuserkampf: `Unit.cmd_storm`/`storming`, `Structure.stormers`/`_sim_storm`/`secure()`. Sonderbefehle (`cmd_patrol`, `cmd_take_cover`,
+  `cmd_entrench`, Zustand `entrenched`) in `entities/unit.gd`; Steuerung in `control/player.gd` (Modi `patrol`/`storm`).
+* Grafikstufen: `Gfx.quality`/`apply_quality` (MSAA, Schatten); Modelle blicken nach **+Z** – `look_at` zeigt -Z, also `look_at(pos - dir)` verwenden.
 * `ui/` – HUD (alles per Code gebaut), `Minimap`, `WorldOverlay` (2D-Marker über der Welt), `Screens` (Menüs).
 * `gfx/` – `MeshBuilder` (Primitive → 1 Mesh mit Vertex-Farben), `Models`, `Props`, `Fx` (GPU-Partikel), Shader.
 
