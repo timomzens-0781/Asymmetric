@@ -451,8 +451,8 @@ func _build_card_items() -> Array:
 			"tip": "Wegpunkt(e) anklicken (Shift: weitere Punkte, letzter Klick ohne Shift). Die Einheiten pendeln zwischen Startpunkt und Wegpunkten und bekämpfen unterwegs erkannte Feinde. Drohnen überwachen so ein Gebiet.",
 			"action": func(): player.set_mode("patrol"), "toggle": "patrol"})
 	if team == U.TEAM_ADF and units.any(func(u): return u.can_cover()):
-		items.append({"icon": "storm", "label": "Stürmen", "hotkey": "Y", "tip_title": "Haus stürmen [Y]",
-			"tip": "Infanterie dringt in ein besetztes Haus ein und kämpft Mann gegen Mann. Langsam und verlustreich, aber ohne Einsturz – Zivilisten im Haus sind weit weniger gefährdet als bei Beschuss. Tunnelknoten werden so gesichert.",
+		items.append({"icon": "storm", "label": "Durchsuchen", "hotkey": "Y", "tip_title": "Haus durchsuchen / stürmen [Y]",
+			"tip": "Infanterie dringt in ein Haus ein: Ist es leer, dauert die Durchsuchung 5 Sekunden (leichte Schikane für Anwohner, setzt den Verdacht zurück). Sitzen Kämpfer darin, kämpft sie Mann gegen Mann. Häuser mit '?'-Marker sind verdächtig – dort lohnt sich der Einsatz. Langsam und verlustreich, aber ohne Einsturz – Zivilisten im Haus sind weit weniger gefährdet als bei Beschuss. Tunnelknoten werden so gesichert.",
 			"action": func(): player.set_mode("storm"), "toggle": "storm"})
 	if units.any(func(u): return u.can_cover()):
 		items.append({"icon": "cover", "label": "Deckung", "hotkey": "K", "tip_title": "Deckung nehmen [K]",

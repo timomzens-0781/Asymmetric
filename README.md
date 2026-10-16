@@ -137,6 +137,14 @@ Hilfsmaßnahmen: **Hilfskonvoi** (F7), **Feldlazarett** (F8), **Evakuierungskorr
 sie senken die Wut in den Vierteln bzw. die Empörung (siehe unten).
 Sieg: alle sieben Tunnelknoten zerstören oder sichern. Niederlage: Kommandozentrale zerstört oder Empörung 100 %.
 
+### Wie Aurelia Tunnelknoten findet
+
+Knoten sind Wohnhäuser, bis die Armee sie entlarvt – blind ganze Straßenzüge zu zerstören kostet Empörung und Beweise. Hinweise liefert die **Beobachtung**:
+Häuser mit Rebellen-Besatzung sammeln **Verdacht**, solange Aurelia-Einheiten sie sehen (Aufklärer und Drohnen doppelt so gut); jedes Hinein- und Hinausgehen von
+Kämpfern erhöht ihn sprunghaft. Ab 15 % erscheint ein gelbes **„?“**, ab 50 % kommt eine Meldung, bei 100 % wird ein Knoten entdeckt (ein gewöhnliches Haus mit
+Bewaffneten gilt dann als „heiß“). **Durchsuchen / Stürmen** (`Y`) klärt es sicher: ein leeres Haus dauert 5 s und setzt den Verdacht zurück (leichte Schikane für
+Anwohner); sitzen Kämpfer darin, kommt es zum Häuserkampf. Rauch und Störsender (Hadar-Front) verhindern Beobachtung.
+
 ### Hadar-Front – Werkzeuge
 
 Kämpfer (tarnbar), RPG-Schütze (tarnbar), **Scharfschütze** (50 m Reichweite, tarnbar), Technical, Raketenrampe (tarnbar, provoziert),

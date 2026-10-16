@@ -412,6 +412,8 @@ func enter_garrison(s: Structure) -> void:
 	if s.garrisoned.size() >= s.garrison_cap:
 		_clear_orders()
 		return
+	if team == U.TEAM_REB and not is_civ:
+		s.note_traffic(18.0 if concealed else 30.0, "Kämpfer betreten das Haus")
 	garrison = s
 	s.garrisoned.append(self)
 	_clear_orders()
@@ -430,6 +432,8 @@ func ungarrison() -> void:
 	s.garrisoned.erase(self)
 	position = world.nav.nearest_free_pos(s.door_pos(position), grid, 8)
 	visible = true
+	if team == U.TEAM_REB and not is_civ and s.team != U.TEAM_ADF:
+		s.note_traffic(18.0 if concealed else 30.0, "Kämpfer verlassen das Haus")
 
 ## Tunnelreise: aus dem Tunnelknoten, in dem die Einheit sitzt, in einen anderen Knoten des Netzes.
 func cmd_tunnel(dest: Structure) -> bool:

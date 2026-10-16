@@ -98,6 +98,15 @@ Aurelias Gegenmittel:
   Wer aus einem Tunnelknoten auf die Armee schießt, wird sofort entdeckt (`Structure.exposed_by_fire`).
 * Wirtschaft: Start 2800, Einkommen 3,6/s je Knoten ×(1+Empörung/80) + 1,5.
 
+## 3c2. Entdeckung von Tunnelknoten (Gebäude-Verdacht)
+
+* `Structure.suspicion` (0…130) steigt für nicht-ADF-Häuser mit Rebellen-Besatzung, solange `observed_by_adf()` > 0 (ADF-Einheit mit Sicht, Entfernung ≤ Sicht + Radius;
+  < 32 m ×1, sonst ×0,55; Aufklärer/Drohnen ×1,5; Rauch/Störsender blockieren). Rate: `(1,5 + 0,4·Besatzung + 0,8·Knoten)/s`. Verkehr (`note_traffic`: Einheit betritt/verlässt das Haus,
+  Produktion) addiert 18–60 sofort. Abbau 0,6/s ohne Beobachtung.
+* ≥ 50: Meldung + Alarm; ≥ 100: Knoten → `mark_revealed`; gewöhnliches Haus → `hot_t` 15 s (ROE-frei beschießbar), Verdacht fällt auf 65. Marker „?“ ab 15 %.
+* Durchsuchen = Stürmen: ohne Verteidiger dauert es `SEARCH_TIME` = 5 s (`search_t`), danach `searched_t` = 60 s (kein Verdacht), Verdacht 0. Aurelia-KI schickt 3–4 Infanteristen
+  zum verdächtigsten Haus (> 45 %, `AiAdf._investigate`).
+
 ## 3d. Häuserkampf & Sonderbefehle
 
 * **Gebäude**: Trefferpunkte ×1,5; Schadensmultiplikator gegen Gebäude: Handfeuerwaffe 0,03 (vorher 0,10), Panzerabwehr 0,55 (vorher 0,8),

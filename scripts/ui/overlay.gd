@@ -68,7 +68,7 @@ func _draw() -> void:
 		_draw_target_info(font)
 	elif player.mode == "ability" or player.mode == "fire_ground" or player.mode == "attack_move" or player.mode == "check" or player.mode == "tunnel" or player.mode == "patrol" or player.mode == "storm":
 		var m := get_viewport().get_mouse_position()
-		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken", "tunnel": "Tunnel: Ziel-Knoten anklicken", "patrol": "Patrouille: Wegpunkt klicken (Shift = weitere)", "storm": "Stürmen: Haus anklicken"}[player.mode]
+		var txt: String = {"ability": "Ziel wählen – Rechtsklick/Esc bricht ab", "fire_ground": "Feuerbefehl: Bodenziel wählen", "attack_move": "Angriffsbewegung: Ziel wählen", "check": "Kontrolle: Person anklicken", "tunnel": "Tunnel: Ziel-Knoten anklicken", "patrol": "Patrouille: Wegpunkt klicken (Shift = weitere)", "storm": "Durchsuchen / Stürmen: Haus anklicken"}[player.mode]
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
 
 ## Patrouillenrouten der gewaehlten Einheiten und die gerade gesetzten Wegpunkte
@@ -316,6 +316,20 @@ func _draw_structure(s: Structure, font: Font, vp: Rect2, pt: int) -> void:
 		draw_rect(r2, Color(0.1, 0.02, 0.02, 0.8))
 		draw_rect(r2, Color(1.0, 0.3, 0.2, flick), false, 2.0)
 		draw_string(font, p + Vector2(-5, -12), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1.0, 0.4, 0.3, flick))
+	if pt == U.TEAM_ADF and s.suspicion >= 15.0 and not s.revealed and s.searched_t <= 0.0 and s.kind_class == "house":
+		var sf := clampf(s.suspicion / 100.0, 0.0, 1.0)
+		var sc := Color(1.0, 0.9 - 0.45 * sf, 0.25)
+		var sr := Rect2(p + Vector2(-13, -34), Vector2(26, 26))
+		draw_rect(sr, Color(0.08, 0.06, 0.02, 0.8))
+		draw_rect(sr, sc, false, 2.0)
+		draw_string(font, p + Vector2(-5, -14), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, sc)
+		draw_string(font, p + Vector2(-30, -42), "VERDÄCHTIG %d%%" % int(s.suspicion), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, sc)
+	if not s.stormers.is_empty() and s.team != U.TEAM_ADF:
+		var pf := clampf(s.search_t / Structure.SEARCH_TIME, 0.0, 1.0)
+		_bar(p + Vector2(0, 8), 44.0, pf, Color(0.4, 0.8, 1.0))
+		draw_string(font, p + Vector2(-34, 24), "DURCHSUCHUNG", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.5, 0.85, 1.0))
+	elif pt == U.TEAM_ADF and s.searched_t > 0.0 and s.kind_class == "house" and rig.dist < 90.0:
+		draw_string(font, p + Vector2(-26, 22), "durchsucht ✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.5, 0.9, 0.6, 0.85))
 	if s.warned and s.occupants > 0 and s.kind_class != "base":
 		draw_string(font, p + Vector2(-30, -6), "EVAKUIERUNG", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.9, 0.3))
 	if pt == U.TEAM_REB and not s.garrisoned.is_empty() and s.team != U.TEAM_ADF:

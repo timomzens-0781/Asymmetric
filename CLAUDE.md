@@ -60,3 +60,4 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
 * Besatzungen: `Structure.garrison_of(team)`, `window_pos`, `exposed_by_fire`; `Unit._sim_garrison` (Reichweitenbonus `_garrison_range_bonus`); die Sicht
   Garnisonierter wird in `World._vis_tick` um denselben Bonus erweitert. Infoleiste zeigt Besatzungs-Symbole (`InfoPanel`), Rechtsklick bei gewähltem Haus führt heraus.
 * Tests einzeln: `-- only=<Name>` (z. B. `only=reb_tricks`, `only=garrison_fire`), `REPEAT=n` als Umgebungsvariable wiederholt den Test.
+* Gebäude-Verdacht: `Structure.suspicion`/`add_suspicion`/`note_traffic`/`observed_by_adf`; Durchsuchen = `cmd_storm` mit `SEARCH_TIME` (5 s); `AiAdf._investigate`. Test: `only=suspicion_search`.

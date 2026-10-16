@@ -9,6 +9,11 @@ var hz := 4.0
 var occupants := 0
 var hub := false
 var revealed := false           # Tunnelknoten fuer ADF entlarvt
+var suspicion := 0.0             # Verdacht der Armee gegen dieses Haus (0..130), durch Beobachtung
+var search_t := 0.0              # Fortschritt der Durchsuchung (Sekunden ohne Widerstand)
+var _obs_t := 0.0
+var _susp_warned := false
+const SEARCH_TIME := 5.0
 var _staged_ping := 0.0
 var _staged_pings := 0
 var staged_t := 0.0             # Klinik/Schule inszeniert (Koeder + Propaganda)
@@ -256,6 +261,71 @@ func _tunnel_emerge(u: Unit) -> void:
 			Game.message("Tunnelzugang entdeckt!", "good", U.TEAM_ADF)
 			Game.news("Soldaten beobachten Bewaffnete beim Verlassen eines Wohnhauses", "info")
 			return
+	note_traffic(60.0, "Kämpfer verlassen das Haus")
+
+# ============================================================================= Verdacht durch Beobachtung
+## Wie gut wird das Haus von der Armee beobachtet? 0 = gar nicht; Aufklaerer und Drohnen sehen mehr
+func observed_by_adf() -> float:
+	var best := 0.0
+	for o in world.dyn.query(position, 64.0):
+		if not (o is Unit) or not o.alive or o.team != U.TEAM_ADF or o.vision <= 0.0:
+			continue
+		var u := o as Unit
+		if u.layer == "air" and Game.jam_t > 0.0:
+			continue
+		var d := U.dist2d(u.position, position)
+		if d > u.vision + radius:
+			continue
+		if d > 6.0 and not world.smokes.is_empty() and (world.in_smoke(position) or world.in_smoke(u.position)):
+			continue
+		var k := 1.0 if d < 32.0 else 0.55
+		if u.kind == "adf_recon" or u.layer == "air":
+			k *= 1.5
+		best = maxf(best, k)
+	return best
+
+## Bewegung am Haus (Kaempfer gehen hinein/heraus): faellt auf, wenn jemand hinsieht
+func note_traffic(v: float, reason: String) -> void:
+	if team == U.TEAM_ADF or kind_class != "house" or revealed:
+		return
+	var ob := observed_by_adf()
+	if ob > 0.0:
+		add_suspicion(v * ob, reason)
+
+func add_suspicion(v: float, reason: String) -> void:
+	if team == U.TEAM_ADF or revealed or searched_t > 0.0 or kind_class != "house":
+		return
+	suspicion = minf(suspicion + v, 130.0)
+	if suspicion >= 50.0 and not _susp_warned:
+		_susp_warned = true
+		Game.message("Verdächtige Aktivität an einem Gebäude – durchsuchen lassen!", "info", U.TEAM_ADF)
+		Game.alert.emit(position, "identified")
+	if suspicion >= 100.0:
+		if hub:
+			mark_revealed("Beobachtung: " + reason)
+			Game.message("Beobachtung: Tunnelzugang entdeckt!", "good", U.TEAM_ADF)
+			Game.news("Aufklärung beobachtet Bewaffnete an einem Wohnhaus – Tunnelzugang vermutet", "info")
+		else:
+			hot_t = maxf(hot_t, 15.0)
+			Game.message("Bewaffnete in einem Wohnhaus beobachtet", "good", U.TEAM_ADF)
+			suspicion = 65.0
+
+func _tick_suspicion(dt: float) -> void:
+	if team == U.TEAM_ADF or kind_class != "house":
+		return
+	var n := 0
+	for g in garrison_of(U.TEAM_REB):
+		if (g as Unit).tunnel_t <= 0.0:
+			n += 1
+	if n > 0 and not revealed and searched_t <= 0.0:
+		var ob := observed_by_adf()
+		if ob > 0.0:
+			add_suspicion((1.5 + 0.4 * n + (0.8 if hub else 0.0)) * ob * dt, "Beobachtung")
+			return
+	if suspicion > 0.0:
+		suspicion = maxf(0.0, suspicion - 0.6 * dt)
+		if suspicion < 45.0:
+			_susp_warned = false
 
 # ============================================================================= Haeuserkampf
 func can_be_stormed() -> bool:
@@ -284,7 +354,9 @@ func add_stormer(u: Unit) -> void:
 func _sim_storm(dt: float) -> void:
 	stormers = stormers.filter(func(u): return is_instance_valid(u) and u.alive)
 	if stormers.is_empty():
+		search_t = 0.0
 		return
+	search_t += dt
 	_storm_round_t -= dt
 	if _storm_round_t > 0.0:
 		return
@@ -293,6 +365,9 @@ func _sim_storm(dt: float) -> void:
 	var defenders: Array = garrisoned.filter(func(g): return is_instance_valid(g) and g.alive and g.team != att_team and g.tunnel_t <= 0.0)
 	hot_t = 7.0
 	if defenders.is_empty():
+		if search_t < SEARCH_TIME:
+			_storm_round_t = 0.4     # Durchsuchen dauert: Zimmer fuer Zimmer
+			return
 		_storm_done()
 		return
 	if hub and not revealed:
@@ -330,6 +405,9 @@ func _storm_done() -> void:
 			u.position = world.nav.nearest_free_pos(door_pos(u.position), "foot", 8)
 			u.order_type = "idle"
 	stormers.clear()
+	search_t = 0.0
+	suspicion = 0.0
+	_susp_warned = false
 	searched_t = 60.0
 	if hub:
 		secure()
@@ -388,6 +466,10 @@ func _process(dt: float) -> void:
 		_sim_storm(dt)
 	if searched_t > 0.0:
 		searched_t -= dt
+	_obs_t -= dt
+	if _obs_t <= 0.0:
+		_obs_t = 0.5
+		_tick_suspicion(0.5)
 	# Rauch/Feuer bei Schaden
 	var f := 1.0 - hp / max_hp
 	if f > 0.45 and _smoke == null:

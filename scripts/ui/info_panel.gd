@@ -174,6 +174,8 @@ func _draw_single(e: Entity, font: Font) -> void:
 		var s := e as Structure
 		if s.kind_class != "base":
 			draw_string(font, Vector2(10, y), _occupancy_text(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.9, 0.5))
+			if player.team == U.TEAM_ADF and s.suspicion >= 5.0 and not s.revealed and s.searched_t <= 0.0:
+				draw_string(font, Vector2(260, y), "Verdacht: %d%% – Durchsuchen [Y] klärt es" % int(s.suspicion), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.8, 0.35))
 			if s.team == player.team and s.hub:
 				draw_string(font, Vector2(260, y), "Besatzung: %d/%d" % [s.garrisoned.size(), s.garrison_cap], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 1.0, 0.6))
 		var gar: Array = s.garrison_of(player.team)

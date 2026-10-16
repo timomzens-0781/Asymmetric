@@ -69,6 +69,7 @@ func _ready() -> void:
 	await _test_orders_and_storm()
 	await _test_garrison_fire()
 	await _test_reb_tricks()
+	await _test_suspicion_search()
 	print("== Ergebnis: %d bestanden, %d fehlgeschlagen ==" % [passes, fails])
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -598,3 +599,56 @@ func _test_reb_tricks() -> void:
 	var hp1: float = tg.hp
 	await _wait(14.0)
 	_check("Scharfschuetze trifft auf 44 m", tg.hp < hp1 or not tg.alive, "hp=%.0f" % tg.hp)
+
+func _test_suspicion_search() -> void:
+	print("-- Gebaeude-Verdacht & Durchsuchen")
+	await _fresh()
+	var hub: Structure = world.hubs[0]
+	var f := world.spawn_unit("reb_fighter", 1, hub.door_pos(hub.position))
+	f.hold = true
+	f.enter_garrison(hub)
+	_check("Knoten zunaechst ohne Verdacht", hub.suspicion < 1.0 and not hub.revealed)
+	# ohne Beobachter waechst der Verdacht nicht
+	await _wait(6.0)
+	_check("Ohne Beobachter kein Verdacht", hub.suspicion < 1.0, "s=%.1f" % hub.suspicion)
+	# Aufklaerer in Sichtweite
+	var rec := world.spawn_unit("adf_recon", 0, _free_spot(hub.position.x + hub.radius + 22.0, hub.position.z))
+	rec.hold = true
+	await _wait(10.0)
+	_check("Beobachtung baut Verdacht auf", hub.suspicion > 15.0 or hub.revealed, "s=%.1f" % hub.suspicion)
+	await _wait(60.0)
+	_check("Genug Beobachtung enttarnt den Knoten", hub.revealed or not f.alive, "s=%.1f revealed=%s" % [hub.suspicion, hub.revealed])
+	# Rauch blockiert Beobachtung
+	await _fresh()
+	Game.player_team = 1
+	Game.budget[1] = 5000.0
+	var hub2: Structure = world.hubs[0]
+	var f2 := world.spawn_unit("reb_fighter", 1, hub2.door_pos(hub2.position))
+	f2.hold = true
+	f2.enter_garrison(hub2)
+	var rec2 := world.spawn_unit("adf_recon", 0, _free_spot(hub2.position.x + hub2.radius + 22.0, hub2.position.z))
+	rec2.hold = true
+	Game.use_ability(1, "smoke", hub2.position)
+	await _wait(15.0)
+	_check("Rauch verhindert Beobachtung", hub2.suspicion < 2.0, "s=%.1f" % hub2.suspicion)
+	# Durchsuchen: leeres Haus dauert, setzt Verdacht zurueck
+	await _fresh()
+	var house: Structure = null
+	for st in world.structures:
+		if st.kind_class == "house" and st.team == U.TEAM_CIV and not st.hub and st.occupants == 0:
+			house = st
+			break
+	if house == null:
+		for st in world.structures:
+			if st.kind_class == "house" and st.team == U.TEAM_CIV and not st.hub:
+				house = st
+				break
+	house.suspicion = 70.0
+	var s1 := world.spawn_unit("adf_rifle", 0, house.door_pos(house.position))
+	var s2 := world.spawn_unit("adf_rifle", 0, house.door_pos(house.position) + Vector3(1.5, 0, 0))
+	_check("Durchsuchen startet", s1.cmd_storm(house) and s2.cmd_storm(house))
+	await _wait(3.5)
+	_check("Durchsuchung laeuft noch", not house.stormers.is_empty() or house.searched_t <= 0.0, "stormers=%d" % house.stormers.size())
+	await _wait(12.0)
+	_check("Durchsuchung fertig", house.searched_t > 0.0 and house.stormers.is_empty())
+	_check("Verdacht zurueckgesetzt", house.suspicion < 1.0)

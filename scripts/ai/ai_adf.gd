@@ -19,6 +19,8 @@ var _rng := RandomNumberGenerator.new()
 var _sectors: Array = []
 var _op_started := false
 var _hub_attack_t := 0.0
+var _inv_target: Structure = null
+var _inv_t := 0.0
 var _next_strike_t := 0.0
 var _storm_tries: Dictionary = {}
 var _storm_last: Dictionary = {}
@@ -59,6 +61,7 @@ func _think() -> void:
 	world.roe_free[0] = Game.outrage < 42.0
 	_produce()
 	_manage_army()
+	_investigate()
 	_use_support()
 
 # ----------------------------------------------------------------------------- Produktion
@@ -217,6 +220,38 @@ func _dispatch(army: Array, target: Vector3, hub_mode: bool) -> void:
 		var off := Vector3((i % 5) * 3.0 - 6.0, 0, (i / 5) * 3.0)
 		u.cmd_attack_move(world.nav.nearest_free_pos(target + off, u.grid, 12))
 		i += 1
+
+## Verdaechtige Haeuser (Beobachtung) durchsuchen lassen: ein kleiner Trupp Infanterie in der Naehe
+func _investigate() -> void:
+	_inv_t -= 1.0
+	if _inv_target != null and (not is_instance_valid(_inv_target) or not _inv_target.alive or _inv_target.revealed or _inv_target.searched_t > 0.0 or _inv_t <= 0.0):
+		_inv_target = null
+	if _inv_target != null:
+		return
+	var best: Structure = null
+	var bs := 45.0
+	for s in world.structures:
+		if s.alive and s.kind_class == "house" and s.team != U.TEAM_ADF and s.suspicion > bs and not s.revealed and s.searched_t <= 0.0 and s.stormers.is_empty():
+			bs = s.suspicion
+			best = s
+	if best == null:
+		return
+	var inf: Array = []
+	for u in _army():
+		if u.layer == "foot" and u.order_type != "storm" and U.dist2d(u.position, best.position) < 95.0:
+			inf.append(u)
+	if inf.size() < 3:
+		return
+	inf.sort_custom(func(x, y): return U.dist2d(x.position, best.position) < U.dist2d(y.position, best.position))
+	var n := 0
+	for u in inf:
+		if n >= 4:
+			break
+		if u.cmd_storm(best):
+			n += 1
+	if n > 0:
+		_inv_target = best
+		_inv_t = 55.0
 
 func _revealed_hub() -> Structure:
 	var best: Structure = null
