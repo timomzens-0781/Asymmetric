@@ -197,6 +197,33 @@ static func draw(ci: CanvasItem, kind: String, r: Rect2, c: Color) -> void:
 			ci.draw_line(P.call(0.3, 0.3), P.call(0.7, 0.3), c, lw)
 			ci.draw_line(P.call(0.6, 0.2), P.call(0.7, 0.3), c, lw)
 			ci.draw_line(P.call(0.6, 0.4), P.call(0.7, 0.3), c, lw)
+		"shield":
+			ci.draw_colored_polygon(PackedVector2Array([P.call(0.18, 0.14), P.call(0.82, 0.14), P.call(0.82, 0.5), P.call(0.5, 0.9), P.call(0.18, 0.5)]), c)
+			ci.draw_circle(P.call(0.5, 0.38), s * 0.09, Color(0, 0, 0, 0.6))
+			ci.draw_rect(Rect2(P.call(0.41, 0.48), Vector2(0.18, 0.22) * s), Color(0, 0, 0, 0.6))
+		"stage":
+			ci.draw_rect(Rect2(P.call(0.1, 0.3), Vector2(0.56, 0.42) * s), c)
+			ci.draw_colored_polygon(PackedVector2Array([P.call(0.68, 0.46), P.call(0.92, 0.3), P.call(0.92, 0.72), P.call(0.68, 0.56)]), c)
+			ci.draw_circle(P.call(0.38, 0.51), s * 0.1, Color(0, 0, 0, 0.6))
+			ci.draw_circle(P.call(0.2, 0.2), s * 0.07, c)
+			ci.draw_circle(P.call(0.46, 0.2), s * 0.07, c)
+		"jam":
+			ci.draw_line(P.call(0.5, 0.9), P.call(0.5, 0.36), c, lw * 1.3)
+			ci.draw_circle(P.call(0.5, 0.3), s * 0.07, c)
+			ci.draw_arc(P.call(0.5, 0.3), s * 0.2, -0.9, 0.9 + PI, 12, c, lw)
+			ci.draw_arc(P.call(0.5, 0.3), s * 0.34, -0.9, 0.9 + PI, 12, c, lw)
+			ci.draw_line(P.call(0.14, 0.12), P.call(0.86, 0.88), Color(1.0, 0.3, 0.25), lw * 1.3)
+		"smoke":
+			ci.draw_circle(P.call(0.3, 0.62), s * 0.2, c)
+			ci.draw_circle(P.call(0.52, 0.5), s * 0.26, c)
+			ci.draw_circle(P.call(0.72, 0.64), s * 0.18, c)
+			ci.draw_circle(P.call(0.42, 0.3), s * 0.14, c)
+			ci.draw_rect(Rect2(P.call(0.14, 0.74), Vector2(0.72, 0.12) * s), c)
+		"sniper":
+			ci.draw_arc(P.call(0.5, 0.5), s * 0.34, 0, TAU, 20, c, lw)
+			ci.draw_line(P.call(0.5, 0.06), P.call(0.5, 0.94), c, lw * 0.9)
+			ci.draw_line(P.call(0.06, 0.5), P.call(0.94, 0.5), c, lw * 0.9)
+			ci.draw_circle(P.call(0.5, 0.5), s * 0.06, c)
 		"base":
 			ci.draw_rect(Rect2(P.call(0.14, 0.34), Vector2(0.72, 0.5) * s), c)
 			ci.draw_line(P.call(0.5, 0.34), P.call(0.5, 0.1), c, lw)

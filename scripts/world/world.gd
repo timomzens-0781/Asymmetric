@@ -34,6 +34,7 @@ const HUB_COUNT := 7
 const DIST_CELL := 40.0               # Viertel-Raster fuer Radikalisierung
 var dist_n := 8
 var anger := PackedFloat32Array()     # 0..100 Wut je Viertel
+var smokes: Array = []                # {pos, r, t, puff}  Rauchschleier der Hadar-Front
 var corridors: Array = []             # {pos, r, t, ping}
 var _anger_t := 1.0
 var _recruit_news_t := 0.0
@@ -254,6 +255,20 @@ func angry_districts(min_a: float = 25.0) -> int:
 			n += 1
 	return n
 
+func in_smoke(p: Vector3) -> bool:
+	for sm in smokes:
+		if U.dist2d(sm.pos, p) <= sm.r:
+			return true
+	return false
+
+## Zahl der als Schutzschild missbrauchten Zivilisten rund um einen Punkt
+func shield_near(p: Vector3, r: float) -> int:
+	var n := 0
+	for o in dyn.query(p, r + 1.0):
+		if o is Civilian and o.alive and (o as Unit).shield_t > 0.0 and U.dist2d(o.position, p) <= r:
+			n += 1
+	return n
+
 func in_corridor(p: Vector3) -> bool:
 	for c in corridors:
 		if U.dist2d(c.pos, p) <= c.r:
@@ -275,6 +290,19 @@ func _district_tick(dt: float) -> void:
 			add_anger(s.position, -0.9 * dt)
 	if hosp > 0 and Game.running and not Game.demo_mode and int(Game.time) % 10 == 0:
 		Game.add_outrage(-0.08 * hosp, true, "")
+	# Rauchschleier
+	for sm in smokes.duplicate():
+		sm.t -= dt
+		if sm.t <= 0.0:
+			smokes.erase(sm)
+			continue
+		sm.puff -= dt
+		if sm.puff <= 0.0:
+			sm.puff = 1.3
+			for k in range(3):
+				var a := randf() * TAU
+				var rr: float = sqrt(randf()) * sm.r * 0.8
+				fx.dust_cloud(sm.pos + Vector3(cos(a) * rr, 0, sin(a) * rr), 4.2, Color(0.82, 0.83, 0.86))
 	# Korridore
 	for c in corridors.duplicate():
 		c.t -= dt
@@ -661,6 +689,8 @@ func _vis_tick(dt: float) -> void:
 	for u in units:
 		if not u.alive or u.vision <= 0.0:
 			continue
+		if u.layer == "air" and Game.jam_t > 0.0:
+			continue     # Stoersender: Drohnen sind blind
 		if u.team == U.TEAM_ADF or u.team == U.TEAM_REB:
 			obs[u.team].append(u)
 		elif u.is_civ:
@@ -676,6 +706,8 @@ func _vis_tick(dt: float) -> void:
 			var r: float = o.vision
 			if o is Civilian:
 				r = 9.0
+			elif o is Unit and (o as Unit).garrison != null:
+				r += (o as Unit)._garrison_range_bonus()     # Ausblick aus den Fenstern
 			var near: Array = dyn.query(o.position, r + 3.0)
 			for e in near:
 				if not e.alive:
@@ -688,6 +720,8 @@ func _vis_tick(dt: float) -> void:
 					pass
 				var d := U.dist2d(o.position, e.position)
 				if d <= r + e.radius:
+					if d > 6.0 and not smokes.is_empty() and (in_smoke(e.position) or in_smoke(o.position)):
+						continue     # Rauch: nichts zu sehen
 					e.seen_mask |= (1 << t)
 	# Eigene Einheiten immer sichtbar fuer sich selbst, Zivilisten fuer beide ueber Sicht
 	for u in units:
@@ -770,6 +804,8 @@ func can_auto_target(att: Entity, e: Entity) -> bool:
 			elif es.team == U.TEAM_CIV:
 				if not (roe_free[0] and es.hot_t > 0.0):
 					return false
+			if es.team != U.TEAM_ADF and shield_near(es.position, es.radius + 5.0) >= 2:
+				return false     # Feuerdisziplin: Zivilisten als Schutzschilde
 			if not _weapon_ok(att, e):
 				return false
 			return true
@@ -782,6 +818,10 @@ func can_auto_target(att: Entity, e: Entity) -> bool:
 		return false
 	if eu.press or eu.garrison != null or eu.storming != null:
 		return false
+	if t == U.TEAM_ADF and att is Unit and (att as Unit).layer == "air" and Game.jam_t > 0.0:
+		return false
+	if t == U.TEAM_ADF and eu.team == U.TEAM_REB and shield_near(eu.position, 6.0) >= 2:
+		return false     # Feuerdisziplin: Zivilisten als Schutzschilde
 	if t == U.TEAM_ADF:
 		if eu.team != U.TEAM_REB:
 			return false
@@ -1025,6 +1065,8 @@ func resolve_check(checker: Unit, t: Unit) -> void:
 			(t as Civilian).panic_from(checker.position, 3.0)
 
 func adf_has_radar() -> bool:
+	if Game.jam_t > 0.0:
+		return false
 	for s in structures:
 		if s.alive and s.kind == "adf_radar":
 			return true

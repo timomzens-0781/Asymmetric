@@ -9,6 +9,9 @@ var hz := 4.0
 var occupants := 0
 var hub := false
 var revealed := false           # Tunnelknoten fuer ADF entlarvt
+var _staged_ping := 0.0
+var _staged_pings := 0
+var staged_t := 0.0             # Klinik/Schule inszeniert (Koeder + Propaganda)
 var hot_t := 0.0                # Gebaeude hat gerade geschossen (feindliche Aktivitaet)
 var warned := false
 var garrisoned: Array = []
@@ -54,7 +57,7 @@ func setup_building(w: World, b: Dictionary) -> void:
 		team = U.TEAM_REB
 		max_hp *= 1.6
 		hp = max_hp
-		produces = ["reb_fighter", "reb_rpg", "reb_tech", "reb_launcher", "reb_media", "reb_saboteur"]
+		produces = ["reb_fighter", "reb_rpg", "reb_sniper", "reb_tech", "reb_launcher", "reb_media", "reb_saboteur"]
 	garrison_cap = clampi(int(size.x * size.z / 22.0), 3, 8)
 	position = b.center
 	model = b.node
@@ -141,6 +144,33 @@ func exit_pos(vehicle: bool) -> Vector3:
 		var ang := randf() * TAU
 		p = position + Vector3(cos(ang) * (hx + 2.0), 0, sin(ang) * (hz + 2.0))
 	return world.nav.nearest_free_pos(p, "veh" if vehicle else "foot", 12)
+
+# ============================================================================= Garnison
+## Besatzung eines Teams (ohne Einheiten im Tunnel)
+func garrison_of(t: int) -> Array:
+	var out: Array = []
+	for g in garrisoned:
+		if is_instance_valid(g) and g.alive and g.team == t and g.tunnel_t <= 0.0:
+			out.append(g)
+	return out
+
+## Schiessscharte: Punkt an der dem Ziel zugewandten Fassade
+func window_pos(toward: Vector3) -> Vector3:
+	var d := toward - position
+	d.y = 0.0
+	if d.length() < 0.1:
+		d = Vector3(1, 0, 0)
+	d = d.normalized()
+	var k := minf(hx / maxf(absf(d.x), 0.001), hz / maxf(absf(d.z), 0.001))
+	return position + d * (k + 0.2) + Vector3(0, clampf(size.y * 0.45, 2.2, 6.5), 0)
+
+## Wer aus einem Haus auf die Armee schiesst, verraet es: Tunnelknoten werden sofort entdeckt.
+func exposed_by_fire() -> void:
+	hot_t = 12.0
+	if hub and not revealed:
+		mark_revealed("Feuer aus dem Haus")
+		Game.message("Feuer aus einem Wohnhaus – Tunnelknoten entdeckt!", "good", U.TEAM_ADF)
+		Game.alert.emit(position, "identified")
 
 # ============================================================================= Produktion
 func can_produce(k: String) -> bool:
@@ -341,6 +371,9 @@ func _process(dt: float) -> void:
 		hot_t -= dt
 		if hub and not revealed:
 			_check_hub_exposed()
+	if staged_t > 0.0:
+		staged_t -= dt
+		hot_t = maxf(hot_t, 1.0)
 	if hit_flash > 0.0:
 		hit_flash -= dt
 	if team != U.TEAM_CIV or hub:
@@ -430,6 +463,10 @@ func _on_damaged(dmg: float, attacker: Entity, _dtype: String) -> void:
 			occupants -= 1
 	if team == U.TEAM_ADF and attacker != null and attacker.team == U.TEAM_REB:
 		Game.base_under_attack(self)
+	if staged_t > 0.0 and attacker != null and attacker.team == U.TEAM_ADF and world.time > _staged_ping and _staged_pings < 4:
+		_staged_ping = world.time + 5.0
+		_staged_pings += 1
+		Game.report_event_outrage(position, 1.5, "", "staged")
 
 func die(attacker: Entity, dtype: String) -> void:
 	if not alive:

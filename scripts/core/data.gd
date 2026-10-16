@@ -93,6 +93,13 @@ const UNITS := {
 		"conceal": true, "icon": "rpg", "model": "reb_rpg",
 		"desc": "Der Panzerschreck der Armen. Zwei, drei Treffer – und der Gigant brennt.",
 	},
+	"reb_sniper": {
+		"short": "Scharfschütze", "name": "Scharfschütze", "team": 1, "cost": 200, "time": 8.0, "hp": 55.0, "speed": 4.8,
+		"turn": 12.0, "vision": 48.0, "radius": 0.8, "layer": "foot", "armor": "inf", "pop": 1,
+		"weapons": [{"range": 50.0, "damage": 68.0, "cd": 3.4, "type": "bullet", "proj": "hit", "air": false}],
+		"conceal": true, "icon": "sniper", "model": "reb_sniper",
+		"desc": "Reichweite 50 m – fast das Doppelte der Armee-Infanterie. Aus Fenstern und Dächern tödlich; zwei Treffer strecken einen Infanteristen nieder.",
+	},
 	"reb_tech": {
 		"short": "Technical", "name": "Technical", "team": 1, "cost": 260, "time": 7.0, "hp": 230.0, "speed": 12.5,
 		"turn": 3.2, "vision": 28.0, "radius": 1.9, "layer": "wheel", "armor": "light", "pop": 2,
@@ -219,6 +226,26 @@ const ABILITIES := {
 		"desc": "Verwandelt Sympathie in Geld. Je größer die Empörung, desto mehr Spenden fließen.",
 		"needs_air": false,
 	},
+	"shield": {
+		"team": 1, "name": "Menschliche Schutzschilde", "cost": 150, "cd": 50.0, "radius": 16.0, "target": true, "icon": "shield",
+		"desc": "Zwingt bis zu 8 Zivilisten im Zielgebiet, sich 40 Sekunden lang um nahe Kämpfer und Verstecke zu stellen. Die Armee stellt dort das Feuer ein – oder tötet Zivilisten vor laufenden Kameras. Aber: Die Armee sammelt Beweise, die Wut im Viertel sinkt.",
+		"needs_air": false,
+	},
+	"staged": {
+		"team": 1, "name": "Inszenierung (Klinik / Schule)", "cost": 200, "cd": 60.0, "radius": 14.0, "target": true, "icon": "stage",
+		"desc": "Klinik oder Schule anklicken: Kameras werden bestellt, Verletzte vor die Linse geführt, Kämpfer als Köder postiert. Sofort Videomaterial – und ein Treffer auf das Gebäude löst 2,5-fache Empörung aus. Die Armee sieht darin allerdings militärische Nutzung (Beweise für Aurelia).",
+		"needs_air": false,
+	},
+	"jam": {
+		"team": 1, "name": "Störsender", "cost": 180, "cd": 70.0, "radius": 0.0, "target": false, "icon": "jam",
+		"desc": "25 Sekunden lang fallen Drohnen, Präzisionsschläge, Aufklärungsflüge und das Gegenbatterie-Radar aus.",
+		"needs_air": false,
+	},
+	"smoke": {
+		"team": 1, "name": "Rauchschleier", "cost": 120, "cd": 35.0, "radius": 15.0, "target": true, "icon": "smoke",
+		"desc": "Brennende Reifen und Nebeltöpfe: 25 Sekunden lang sieht niemand weiter als 6 m in oder durch den Rauch. Zum Absetzen, Verlegen oder für den Hinterhalt.",
+		"needs_air": false,
+	},
 }
 
 ## Empörungsstufen
@@ -246,6 +273,16 @@ const HEADLINES_PRESS_KILLED := [
 const HEADLINES_SENSITIVE := [
 	"Klinik getroffen! Ärzte ohne Strom und Medikamente",
 	"Schule in Trümmern: Das Entsetzen kennt keine Grenzen",
+]
+const HEADLINES_SHIELD := [
+	"Zivilisten als Schutzschilde? Aufnahmen zeigen Menschen vor Kämpfern",
+	"Armee feuert in dicht besetzte Straße – Zeugen sprechen von Geiseln",
+	"Menschenkette vor Rebellenstellung: Aurelia in der Zwickmühle",
+]
+const HEADLINES_STAGED := [
+	"Bilder aus der Klinik gehen um die Welt: 'Sie bombardieren Krankenhäuser'",
+	"Schule als Ziel? Eltern und Lehrer filmen den Angriff",
+	"Ärzte rufen um Hilfe: Klinik unter Beschuss",
 ]
 const HEADLINES_REBEL_ATTACK := [
 	"Raketenbeschuss auf Stützpunkt – Aurelia kündigt Vergeltung an",

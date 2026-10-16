@@ -42,6 +42,7 @@ var _hub_total := 0
 var _end_check_t := 0.0
 var _upload_hint_t := 0.0
 var fire_clusters: Array = []     # Feuergefechte der eigenen Seite: {pos, t, alert_t}
+var jam_t := 0.0                  # Stoersender der Hadar-Front aktiv
 var briefing_t := 0.0             # Presse-Briefing aktiv: neue Empoerung wirkt abgeschwaecht
 var timeline: Array = []          # Ereignisprotokoll: {t, kind, text, pos, o}
 var outrage_samples := PackedFloat32Array()   # Empoerung im 2-s-Takt
@@ -58,7 +59,7 @@ func start(side: int, diff: int, demo: bool) -> void:
 	running = true
 	ended = false
 	time = 0.0
-	budget = [4500.0, 2200.0]
+	budget = [4500.0, 2800.0]
 	if difficulty == 0:
 		budget[side] += 800.0
 	outrage = 0.0
@@ -78,6 +79,7 @@ func start(side: int, diff: int, demo: bool) -> void:
 	_decay_t = 0.0
 	_end_check_t = 0.0
 	briefing_t = 0.0
+	jam_t = 0.0
 	timeline.clear()
 	outrage_samples = PackedFloat32Array()
 	anger_samples = PackedFloat32Array()
@@ -157,7 +159,7 @@ func income_rate(t: int) -> float:
 		return base
 	var hubs := alive_hubs()
 	var donations := 0.012 * world.total_anger() if world != null else 0.0
-	return (3.2 * hubs * (1.0 + outrage / 80.0) + donations) * mult
+	return (3.6 * hubs * (1.0 + outrage / 80.0) + 1.5 + donations) * mult
 
 func alive_hubs() -> int:
 	if world == null:
@@ -186,6 +188,10 @@ func _process(dt: float) -> void:
 	fire_clusters = fire_clusters.filter(func(c): return time - c.t < 8.0)
 	if briefing_t > 0.0:
 		briefing_t = maxf(0.0, briefing_t - dt)
+	if jam_t > 0.0:
+		jam_t = maxf(0.0, jam_t - dt)
+		if jam_t <= 0.0:
+			message_posted.emit("Störsender erloschen – Drohnen und Lenkwaffen wieder einsatzbereit", "info", U.TEAM_ADF)
 		if outrage > 0.0:
 			add_outrage(-0.05 * dt, true, "")
 	_sample_t -= dt
@@ -283,7 +289,7 @@ func add_outrage(v: float, silent: bool = false, cause: String = "other", attrib
 const CAUSE_LABELS := {
 	"strike": "Luft- & Artillerieschläge", "collapse": "Eingestürzte Wohnhäuser", "direct": "Beschuss von Zivilisten",
 	"ambiguous": "Unklare Vorfälle (Getarnte erschossen)", "press": "Getötete Journalisten", "sensitive": "Klinik / Schule getroffen",
-	"check": "Schikane bei Kontrollen", "other": "Sonstiges",
+	"check": "Schikane bei Kontrollen", "shield": "Schutzschilde getroffen", "staged": "Inszenierte Bilder (Klinik / Schule)", "other": "Sonstiges",
 }
 
 func add_footage(amount: float, cause: String) -> void:
@@ -370,6 +376,8 @@ func _flush_civ_events() -> void:
 				g.direct = g.direct or e.direct
 				if e.cause == "collapse":
 					g.cause = "collapse"
+				elif e.cause == "shield" and g.cause != "collapse":
+					g.cause = "shield"
 				merged = true
 				break
 		if not merged:
@@ -382,6 +390,8 @@ func _flush_civ_events() -> void:
 				sev = 1.5
 			if g.cause == "ambiguous":
 				sev = 0.45
+			elif g.cause == "shield":
+				sev = 1.6
 			var vis := footage_visibility(g.pos)
 			var raw: float = g.n * 1.0 * sev
 			var gain := raw * (0.45 + vis * 0.9)
@@ -392,6 +402,8 @@ func _flush_civ_events() -> void:
 				cause_key = "direct"
 			elif g.cause == "ambiguous":
 				cause_key = "ambiguous"
+			elif g.cause == "shield":
+				cause_key = "shield"
 			# Rebellen-Seite: Material wird hochgeladen (Medien-Team) oder sickert durch
 			if media_alive() > 0 or demo_mode:
 				add_footage(gain, cause_key)
@@ -407,6 +419,8 @@ func _flush_civ_events() -> void:
 			var line: String = pool[_rng.randi() % pool.size()]
 			if line.contains("%d"):
 				line = line % maxi(n, 1)
+			if g.cause == "shield":
+				line = Data.HEADLINES_SHIELD[_rng.randi() % Data.HEADLINES_SHIELD.size()]
 			if g.cause == "ambiguous":
 				line = "Unklarer Vorfall: Mann auf Straße erschossen – war er bewaffnet?"
 			news_posted.emit("%s: %s" % [Data.OUTLETS[_rng.randi() % Data.OUTLETS.size()], line], "bad")
@@ -448,7 +462,10 @@ func unit_died(u: Unit, attacker: Entity, dtype: String) -> void:
 		var direct := dtype in ["bullet", "ap"] and attacker != null and not attacker.is_structure()
 		if dtype == "he" or dtype == "missile":
 			direct = false
-		report_civilian_deaths(u.position, 1.0, by, "direct" if direct else "strike", direct)
+		var ckey := "direct" if direct else "strike"
+		if u.shield_t > 0.0 and by == U.TEAM_ADF:
+			ckey = "shield"
+		report_civilian_deaths(u.position, 1.0, by, ckey, direct)
 		return
 	if u.kind == "adf_aid":
 		if attacker != null and attacker.team == U.TEAM_REB:
@@ -508,7 +525,12 @@ func structure_destroyed(s: Structure, attacker: Entity) -> void:
 	stats.buildings_destroyed += 1
 	if s.kind_class in ["hospital", "school"] and attacker != null and attacker.team == U.TEAM_ADF:
 		var h: Array = Data.HEADLINES_SENSITIVE
-		report_event_outrage(s.position, 14.0, h[0] if s.kind_class == "hospital" else h[1], "sensitive")
+		if s.staged_t > 0.0:
+			var hs: Array = Data.HEADLINES_STAGED
+			report_event_outrage(s.position, 14.0 * 2.5, hs[_rng.randi() % hs.size()], "staged")
+			stats.staged_hits = int(stats.get("staged_hits", 0)) + 1
+		else:
+			report_event_outrage(s.position, 14.0, h[0] if s.kind_class == "hospital" else h[1], "sensitive")
 	elif s.team == U.TEAM_CIV and attacker != null and attacker.team == U.TEAM_ADF and world != null:
 		world.add_anger(s.position, 4.0)
 	if s.kind == "adf_fieldhosp" and attacker != null and attacker.team == U.TEAM_REB:
@@ -528,6 +550,8 @@ func ability_ready(team: int, id: String) -> bool:
 	if d.get("needs_air", false) and no_fly_zone():
 		return false
 	if id == "evidence" and evidence < 1.0:
+		return false
+	if team == U.TEAM_ADF and jam_t > 0.0 and id in ["precision", "scan"]:
 		return false
 	if id == "upload" and (footage < 0.5 or media_alive() <= 0):
 		return false
@@ -553,9 +577,18 @@ func use_ability(team: int, id: String, pos: Vector3 = Vector3.ZERO) -> bool:
 		stats.strikes += 1
 		log_event("strike", "%s angefordert" % d.name, pos)
 	match id:
-		"airstrike", "precision", "salvo", "warning", "scan", "convoy", "fieldhosp", "corridor":
+		"airstrike", "precision", "salvo", "warning", "scan", "convoy", "fieldhosp", "corridor", "shield", "staged", "smoke":
 			if world != null:
 				world.support.execute(id, team, pos)
+		"jam":
+			jam_t = 25.0
+			stats.jams = int(stats.get("jams", 0)) + 1
+			message_posted.emit("Störsender aktiv: Drohnen, Präzisionsschläge und Radar fallen 25 s aus", "bad" if team != player_team else "good", -1)
+			log_event("jam", "Störsender eingeschaltet")
+			if world != null:
+				for u in world.units:
+					if u.alive and u.team == U.TEAM_ADF and u.layer == "air":
+						world.fx.ring_ping(u.position, 6.0, Color(1.0, 0.3, 0.3, 0.8), 1.5)
 		"briefing":
 			briefing_t = 60.0
 			add_outrage(-2.5, true, "")

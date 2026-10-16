@@ -215,7 +215,7 @@ func show_briefing(side: int) -> void:
 	else:
 		_brief_title.text = "OPERATION LEUCHTFEUER"
 		_brief_text.text = "Qadira, Hadar. Gegen Aurelias Armee können Sie keine einzige Schlacht gewinnen – das wissen Sie, und das weiß Ihr Gegner. Aber die Welt schaut zu, und die Verbündeten des Giganten haben schwache Nerven.\n\nIhre Waffen: Tarnung, Hinterhalt, die Rakete als Provokation – und das Smartphone. Wer das Bild beherrscht, beherrscht den Krieg."
-		_brief_obj.text = "ZIELE\n▸ Treiben Sie die Weltöffentlichkeit auf 100% Empörung.\n▸ Medien-Teams filmen Ereignisse in ihrer Nähe. Aufnahmen sammeln sich an – veröffentlichen Sie sie mit F1 (Upload).\n▸ Verstecken Sie Kämpfer in Häusern (Rechtsklick) oder unter Zivilisten (G). Lassen Sie den Feind zuerst kommen.\n▸ Halten Sie mindestens einen Tunnelknoten am Leben: Ohne sie ist der Widerstand gebrochen.\n▸ Die Knoten sind unterirdisch verbunden (N): Schicken Sie Besatzungen unsichtbar durchs Tunnelnetz. Jeder zivile Tote bringt Freiwillige und Spenden."
+		_brief_obj.text = "ZIELE\n▸ Treiben Sie die Weltöffentlichkeit auf 100% Empörung.\n▸ Medien-Teams filmen Ereignisse in ihrer Nähe. Aufnahmen sammeln sich an – veröffentlichen Sie sie mit F1 (Upload).\n▸ Verstecken Sie Kämpfer in Häusern (Rechtsklick) oder unter Zivilisten (G). Lassen Sie den Feind zuerst kommen.\n▸ Halten Sie mindestens einen Tunnelknoten am Leben: Ohne sie ist der Widerstand gebrochen.\n▸ Die Knoten sind unterirdisch verbunden (N): Schicken Sie Besatzungen unsichtbar durchs Tunnelnetz. Jeder zivile Tote bringt Freiwillige und Spenden.\n▸ Fiese Tricks (F3–F6): Schutzschilde aus Zivilisten, Inszenierung von Klinik/Schule, Störsender gegen Drohnen, Rauchschleier. Jeder hat einen Preis – Aurelia sammelt Beweise."
 		_brief_btn.add_theme_stylebox_override("normal", _style(Color(0.36, 0.18, 0.05, 0.98), Color(0.95, 0.5, 0.12), 2))
 	brief_root.visible = true
 	_layout()
@@ -251,7 +251,7 @@ func _build_pause() -> void:
 	_pause_gfx.position = Vector2(380, y + 104)
 	var b3 := _button(_pause_panel, "Hauptmenü", Vector2(320, 44), func(): menu_requested.emit())
 	b3.position = Vector2(40, y + 156)
-	var ctrl := _lbl(_pause_panel, "Steuerung\nWASD/Pfeile/Rand: Kamera · Q/E/Mittelmaus: Drehen · Rad: Zoom\nLinksklick/Rahmen: Wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen\nT: Angriffsbewegung · X: Stopp · H: Feuer halten · G: Tarnen · B: Sprengfalle\nF: Feuerbefehl · V: Gebäude räumen · N: Tunnelreise · R: Einsatzregeln · F1–F10: Unterstützung\nStrg+1–9: Gruppe speichern · 1–9: abrufen · Leertaste: letzter Alarm", 12, Color(0.75, 0.72, 0.64), 2)
+	var ctrl := _lbl(_pause_panel, "Steuerung\nWASD/Pfeile/Rand: Kamera · Q/E/Mittelmaus: Drehen · Rad: Zoom\nLinksklick/Rahmen: Wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen\nT: Angriffsbewegung · X: Stopp · H: Feuer halten · G: Tarnen · B: Sprengfalle\nF: Feuerbefehl · V: Gebäude räumen · N: Tunnelreise · R: Einsatzregeln · F1–F10: Fähigkeiten\nBesatzung: Haus wählen → Symbole in der Infoleiste, Rechtsklick führt heraus · V räumt\nStrg+1–9: Gruppe speichern · 1–9: abrufen · Leertaste: letzter Alarm", 12, Color(0.75, 0.72, 0.64), 2)
 	ctrl.position = Vector2(40, y + 214)
 
 func show_pause() -> void:

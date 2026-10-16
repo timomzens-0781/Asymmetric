@@ -15,6 +15,9 @@ func execute(id: String, team: int, pos: Vector3) -> void:
 		"convoy": _convoy(pos)
 		"fieldhosp": _fieldhosp(pos)
 		"corridor": _corridor(pos)
+		"shield": _shield(pos)
+		"staged": _staged(pos)
+		"smoke": _smoke(pos)
 
 func _base_pos() -> Vector3:
 	return world.city.base_assembly if world != null and world.city != null else Vector3.ZERO
@@ -220,3 +223,82 @@ func _corridor(pos: Vector3) -> void:
 	Game.message("Evakuierungskorridor geöffnet – wer bleibt, fällt auf", "good", U.TEAM_ADF)
 	Game.news("Aurelia öffnet Evakuierungskorridor – Zivilisten verlassen das Viertel", "info")
 	Game.log_event("corridor", "Evakuierungskorridor geöffnet", pos)
+
+# ----------------------------------------------------------------------------- Tricks der Hadar-Front
+func _refund_reb(id: String, why: String) -> void:
+	Game.message(why, "warn", U.TEAM_REB)
+	Game.refund(U.TEAM_REB, Data.ABILITIES[id].cost)
+	Game.cooldowns[1][id] = 0.0
+
+func _shield(pos: Vector3) -> void:
+	var r: float = Data.ABILITIES["shield"].radius
+	# Anker: Kaempfer (oder Verstecke mit Besatzung) in der Naehe
+	var anchors: Array = []
+	for o in world.dyn.query(pos, r + 14.0):
+		if o is Unit and o.alive and o.team == U.TEAM_REB and not (o as Unit).is_civ and (o as Unit).layer == "foot" and (o as Unit).garrison == null and not (o as Unit).weapons.is_empty():
+			anchors.append(o)
+	for st in world.structures:
+		if st.alive and st.team != U.TEAM_ADF and st.kind_class != "base" and U.dist2d(st.position, pos) < r + 14.0 and not (st as Structure).garrison_of(U.TEAM_REB).is_empty():
+			anchors.append(st)
+	var civs: Array = []
+	for o in world.dyn.query(pos, r + 2.0):
+		if o is Civilian and o.alive and (o as Unit).garrison == null and (o as Unit).shield_t <= 0.0 and U.dist2d(o.position, pos) <= r:
+			civs.append(o)
+	if anchors.is_empty():
+		_refund_reb("shield", "Keine Kämpfer oder besetzte Verstecke im Zielgebiet")
+		return
+	if civs.is_empty():
+		_refund_reb("shield", "Keine Zivilisten im Zielgebiet")
+		return
+	civs.sort_custom(func(a, b): return U.dist2d(a.position, pos) < U.dist2d(b.position, pos))
+	var n := 0
+	for c in civs:
+		if n >= 8:
+			break
+		var best: Entity = null
+		var bd := 1e9
+		for a in anchors:
+			var dd: float = U.dist2d(a.position, c.position)
+			if dd < bd:
+				bd = dd
+				best = a
+		(c as Unit).force_shield(best, 40.0)
+		n += 1
+	world.fx.ring_ping(pos, r, Color(1.0, 0.75, 0.2, 0.8), 2.0)
+	Sfx.play_ui("lock")
+	Game.stats.shields = int(Game.stats.get("shields", 0)) + n
+	Game.log_event("shield", "%d Zivilisten als Schutzschilde gezwungen" % n, pos)
+	# Die Armee dokumentiert den Missbrauch; die Bevoelkerung ist wuetend auf die Hadar-Front
+	Game.evidence += 0.5 * n
+	world.add_anger(pos, -2.0 * n)
+	Game.message("%d Zivilisten als Schutzschilde aufgestellt – Aurelia sammelt Beweise" % n, "info", U.TEAM_REB)
+	Game.message("Zivilisten werden als Schutzschilde missbraucht – Feuer an diesen Stellungen eingestellt", "warn", U.TEAM_ADF)
+
+func _staged(pos: Vector3) -> void:
+	var s: Structure = world.nearest_structure(pos, 14.0, func(st): return st.kind_class in ["hospital", "school"])
+	if s == null:
+		_refund_reb("staged", "Keine Klinik oder Schule im Zielbereich")
+		return
+	s.staged_t = 60.0
+	s._staged_pings = 0
+	s.hot_t = maxf(s.hot_t, 60.0)
+	var occ: int = s.occupants
+	Game.add_footage(4.0 + minf(occ * 0.25, 5.0), "staged")
+	Game.evidence += 2.0
+	world.add_anger(s.position, 8.0)
+	world.fx.ring_ping(s.position, s.radius + 6.0, Color(1.0, 0.3, 0.7, 0.9), 2.4)
+	world.fx.flash(s.position + Vector3(0, s.size.y + 1.0, 0), 3.0, 0.15)
+	Sfx.play_ui("lock")
+	var nm := "Klinik" if s.kind_class == "hospital" else "Schule"
+	Game.message("%s inszeniert: Kameras laufen, Köder ausgelegt – Videomaterial bereit" % nm, "good", U.TEAM_REB)
+	Game.message("%s meldet bewaffnete Präsenz – Vorsicht, die Bilder wirken auf die Weltöffentlichkeit" % nm, "warn", U.TEAM_ADF)
+	Game.news("Hadar-Front: 'Verletzte in der %s – die Welt muss zusehen'" % nm, "info")
+	Game.log_event("staged", "%s inszeniert" % nm, s.position)
+
+func _smoke(pos: Vector3) -> void:
+	var r: float = Data.ABILITIES["smoke"].radius
+	world.smokes.append({"pos": pos, "r": r, "t": 25.0, "puff": 0.0})
+	world.fx.ring_ping(pos, r, Color(0.8, 0.82, 0.86, 0.8), 2.0)
+	Sfx.play_at("explosion_s", pos)
+	Game.log_event("smoke", "Rauchschleier gelegt", pos)
+	Game.message("Rauchschleier: 25 s Sichtschutz", "info", U.TEAM_REB)

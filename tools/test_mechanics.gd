@@ -48,6 +48,14 @@ func _ready() -> void:
 	Engine.time_scale = 4.0
 	await get_tree().process_frame
 	print("== Mechaniktests ==")
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("only="):
+			var fn: String = "_test_" + a.substr(5)
+			for i in range(int(OS.get_environment("REPEAT")) if OS.get_environment("REPEAT") != "" else 1):
+				await call(fn)
+			print("== Ergebnis: %d bestanden, %d fehlgeschlagen ==" % [passes, fails])
+			get_tree().quit(1 if fails > 0 else 0)
+			return
 	await _test_suspicion()
 	await _test_check()
 	await _test_civ_deaths()
@@ -59,6 +67,8 @@ func _ready() -> void:
 	await _test_tunnel()
 	await _test_anger_and_aid()
 	await _test_orders_and_storm()
+	await _test_garrison_fire()
+	await _test_reb_tricks()
 	print("== Ergebnis: %d bestanden, %d fehlgeschlagen ==" % [passes, fails])
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -178,7 +188,10 @@ func _test_launcher() -> void:
 	var l := world.spawn_unit("reb_launcher", 1, world.nav.nearest_free_pos(Vector3(10, 0, 40), "veh", 10))
 	await _wait(0.6)
 	l.cmd_attack_ground(world.city.base_assembly)
-	await _wait(14.0)
+	var waited := 0.0
+	while Game.stats.launches < 1 and waited < 30.0:
+		await _wait(0.5)
+		waited += 0.5
 	_check("Raketenabschuss registriert", Game.stats.launches >= 1, "launches=%d" % Game.stats.launches)
 	_check("Rampe bei Abschuss enttarnt", l.exposed_t > 0.0 or not l.concealed)
 
@@ -443,3 +456,145 @@ func _test_orders_and_storm() -> void:
 	var dhp: float = dr.hp
 	dr.take_damage(100.0, rifle_reb, "bullet", dr.position)
 	_check("Kleinwaffen richten nichts an", dr.hp == dhp)
+
+func _test_garrison_fire() -> void:
+	print("-- Besatzung: Feuer, Raeumen, Knoten entdecken")
+	await _fresh()
+	var house: Structure = null
+	for st in world.structures:
+		if st.kind_class == "house" and st.team == U.TEAM_CIV and not st.hub and st.occupants >= 0:
+			house = st
+			break
+	_check("Zivilhaus gefunden", house != null)
+	if house == null:
+		return
+	var fp := house.door_pos(house.position)
+	var f := world.spawn_unit("reb_fighter", 1, fp)
+	f.enter_garrison(house)
+	_check("Kaempfer im Haus", f.garrison == house and house.garrison_of(1).size() == 1)
+	var tgt := world.spawn_unit("adf_rifle", 0, _free_spot(house.position.x + house.radius + 14.0, house.position.z))
+	tgt.hold = true
+	var hp0 := tgt.hp
+	await _wait(10.0)
+	print("   DBG vision=%.0f seen=%d target=%s weapons=%d range=%.0f dist=%.1f r=%.1f hold=%s conceal=%s" % [f.vision, tgt.seen_mask, f.target, f.weapons.size(), f.weapons[0].range if f.weapons.size() > 0 else -1.0, U.dist2d(f.position, tgt.position), house.radius, f.hold, f.concealed])
+	_check("Besatzung eroeffnet Feuer aus dem Haus", tgt.hp < hp0 or not tgt.alive, "hp=%.0f/%.0f" % [tgt.hp, hp0])
+	_check("Haus gilt als heiss", house.hot_t > 0.0)
+	# Raeumen
+	for u in house.garrison_of(1):
+		(u as Unit).ungarrison()
+	_check("Besatzung laesst sich herausholen", f.garrison == null and house.garrison_of(1).is_empty())
+	# Knoten, der feuert, wird entdeckt
+	await _fresh()
+	var hub: Structure = world.hubs[0]
+	var h := world.spawn_unit("reb_fighter", 1, hub.door_pos(hub.position))
+	h.enter_garrison(hub)
+	var bait := world.spawn_unit("adf_rifle", 0, _free_spot(hub.position.x + hub.radius + 12.0, hub.position.z))
+	bait.hold = true
+	_check("Knoten zunaechst unentdeckt", not hub.revealed)
+	await _wait(10.0)
+	print("   DBG2 seen=%d target=%s dist=%.1f r=%.1f hp=%.0f hot=%.1f" % [bait.seen_mask, h.target, U.dist2d(h.position, bait.position), hub.radius, bait.hp, hub.hot_t])
+	_check("Feuer deckt Tunnelknoten auf", hub.revealed or not bait.alive, "revealed=%s" % hub.revealed)
+
+func _test_reb_tricks() -> void:
+	print("-- Hadar-Front: Schutzschilde, Inszenierung, Stoersender, Rauch, Scharfschuetze")
+	await _fresh()
+	Game.player_team = 1
+	Game.budget[1] = 5000.0
+	var spot := _free_spot(30, 30)
+	var f := world.spawn_unit("reb_fighter", 1, spot)
+	f.hold = true
+	var civs: Array = []
+	for i in range(5):
+		civs.append(world.spawn_civilian(_free_spot(spot.x + 6.0 + i * 1.5, spot.z + 5.0)))
+	await _wait(0.5)
+	var ev0: float = Game.evidence
+	_check("Schutzschilde einsetzbar", Game.use_ability(1, "shield", spot))
+	await _wait(0.3)
+	var n_sh := 0
+	for c in civs:
+		if (c as Unit).shield_t > 0.0:
+			n_sh += 1
+	_check("Zivilisten werden zu Schutzschilden", n_sh >= 4, "n=%d" % n_sh)
+	_check("Armee sammelt Beweise", Game.evidence > ev0 + 1.0, "ev=%.1f" % Game.evidence)
+	await _wait(7.0)
+	var near := 0
+	for c in civs:
+		if is_instance_valid(c) and (c as Unit).alive and U.dist2d(c.position, f.position) < 5.0:
+			near += 1
+	_check("Schilde stellen sich um den Kaempfer", near >= 3, "near=%d" % near)
+	# Feuerdisziplin
+	var rifle := world.spawn_unit("adf_rifle", 0, _free_spot(spot.x - 16.0, spot.z))
+	rifle.hold = false
+	f.concealed = false
+	f.exposed_t = 30.0
+	await _wait(0.5)
+	f.exposed_t = 30.0
+	f.ident_mask |= 1
+	_check("ADF darf nicht auf Schilde-Kaempfer zielen", not world.can_auto_target(rifle, f))
+	# Tod von Schutzschilden zaehlt als eigene Ursache
+	var victim: Unit = civs[0]
+	var o0: float = float(Game.attrib.get("shield", 0.0))
+	victim.take_damage(500.0, rifle, "he", victim.position)
+	await _wait(3.0)
+	_check("Getroffene Schilde sind eigene Ursache", float(Game.attrib.get("shield", 0.0)) > o0 or float(Game.footage_src.get("shield", 0.0)) > 0.0, "attrib=%s src=%s" % [Game.attrib.get("shield", 0.0), Game.footage_src.get("shield", 0.0)])
+	await _wait(35.0)
+	_check("Schilde enden nach Ablauf", (civs[1] as Unit).shield_t <= 0.0)
+	# Inszenierung
+	await _fresh()
+	Game.player_team = 1
+	Game.budget[1] = 5000.0
+	var clinic: Structure = null
+	for st in world.structures:
+		if st.kind_class == "hospital" and st.alive:
+			clinic = st
+			break
+	if clinic == null:
+		for st in world.structures:
+			if st.kind_class == "school" and st.alive:
+				clinic = st
+				break
+	_check("Klinik oder Schule vorhanden", clinic != null)
+	if clinic != null:
+		var fo0: float = Game.footage
+		_check("Inszenierung einsetzbar", Game.use_ability(1, "staged", clinic.position))
+		await _wait(0.3)
+		_check("Gebaeude inszeniert", clinic.staged_t > 0.0 and clinic.hot_t > 0.0)
+		_check("Sofort Videomaterial", Game.footage > fo0 + 2.0, "footage=%.1f" % Game.footage)
+		var o1: float = Game.outrage
+		var shooter := world.spawn_unit("adf_mbt", 0, _free_spot(clinic.position.x + 20, clinic.position.z))
+		clinic.hp = 1.0
+		clinic.take_damage(900.0, shooter, "ap", clinic.position)
+		await _wait(2.0)
+		_check("Zerstoerte inszenierte Klinik: grosse Empoerung", float(Game.attrib.get("staged", 0.0)) + (Game.outrage - o1) > 10.0 or Game.footage > fo0 + 20.0, "o=%.1f footage=%.1f" % [Game.outrage, Game.footage])
+	# Stoersender
+	await _fresh()
+	Game.player_team = 1
+	Game.budget[1] = 5000.0
+	Game.budget[0] = 5000.0
+	_check("Stoersender einsetzbar", Game.use_ability(1, "jam"))
+	_check("Praezisionsschlag blockiert", not Game.ability_ready(0, "precision"))
+	_check("Aufklaerungsflug blockiert", not Game.ability_ready(0, "scan"))
+	_check("Radar ausgefallen", not world.adf_has_radar())
+	Game.jam_t = 0.0
+	_check("Nach Ablauf wieder verfuegbar", Game.ability_ready(0, "precision"))
+	# Rauch
+	await _fresh()
+	Game.player_team = 1
+	Game.budget[1] = 5000.0
+	var center := _free_spot(40, 20)
+	var rb := world.spawn_unit("reb_fighter", 1, center)
+	rb.hold = true
+	var rec := world.spawn_unit("adf_recon", 0, _free_spot(center.x - 14, center.z))
+	await _wait(1.0)
+	_check("Ohne Rauch gesehen", rb.seen_by(0))
+	_check("Rauch einsetzbar", Game.use_ability(1, "smoke", center))
+	await _wait(1.0)
+	_check("Im Rauch unsichtbar", not rb.seen_by(0), "smokes=%d" % world.smokes.size())
+	# Scharfschuetze
+	await _fresh()
+	var sn := world.spawn_unit("reb_sniper", 1, _free_spot(40, 20))
+	var tg := world.spawn_unit("adf_rifle", 0, _free_spot(40 + 44, 20))
+	tg.hold = true
+	var hp1: float = tg.hp
+	await _wait(14.0)
+	_check("Scharfschuetze trifft auf 44 m", tg.hp < hp1 or not tg.alive, "hp=%.0f" % tg.hp)

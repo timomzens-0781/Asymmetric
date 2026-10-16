@@ -254,6 +254,11 @@ func _draw_unit(u: Unit, font: Font, vp: Rect2, pt: int, near: bool) -> void:
 		_bar(p, w, hp_f, col)
 	# Marker
 	var yoff := -10.0
+	if u.shield_t > 0.0:
+		var pulse := 0.65 + 0.35 * sin(_t * 6.0)
+		draw_arc(p + Vector2(0, 8), 9.0, 0, TAU, 14, Color(1.0, 0.7, 0.15, pulse), 2.0)
+		if near:
+			draw_string(font, p + Vector2(-18, -4), "SCHILD", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1.0, 0.75, 0.2, pulse))
 	if u.press:
 		_draw_cam_icon(p + Vector2(0, -12))
 		yoff -= 14.0
@@ -315,6 +320,9 @@ func _draw_structure(s: Structure, font: Font, vp: Rect2, pt: int) -> void:
 		draw_string(font, p + Vector2(-30, -6), "EVAKUIERUNG", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.9, 0.3))
 	if pt == U.TEAM_REB and not s.garrisoned.is_empty() and s.team != U.TEAM_ADF:
 		draw_string(font, p + Vector2(-9, -4), "%d" % s.garrisoned.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.5, 1.0, 0.6))
+	if s.staged_t > 0.0:
+		var fl := 0.6 + 0.4 * sin(_t * 7.0)
+		draw_string(font, p + Vector2(-30, 20), "INSZENIERT %ds" % int(ceil(s.staged_t)), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.4, 0.8, fl))
 	if s.kind_class in ["hospital", "school"] and rig.dist < 90.0:
 		var nm := "KLINIK" if s.kind_class == "hospital" else "SCHULE"
 		draw_string(font, p + Vector2(-22, 6), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.95, 1.0, 0.9))

@@ -23,7 +23,7 @@ static func build_unit(kind: String, team: int, variant: int = 0) -> Node3D:
 	var root := Node3D.new()
 	var parts := {}
 	match kind:
-		"adf_rifle", "adf_recon", "reb_fighter", "reb_rpg", "reb_saboteur", "reb_media":
+		"adf_rifle", "adf_recon", "reb_fighter", "reb_rpg", "reb_saboteur", "reb_media", "reb_sniper":
 			_infantry(root, parts, kind, team)
 		"adf_apc":
 			_apc(root, parts, team)
@@ -266,6 +266,8 @@ static func _infantry(root: Node3D, parts: Dictionary, kind: String, team: int) 
 			_person_parts(root, parts, Color(0.34, 0.36, 0.3), Color(0.31, 0.33, 0.28), Color(0.19, 0.21, 0.19), Color(0.24, 0.26, 0.23), SKIN[1], tc, {"gun": "scope", "backpack": true, "pack_col": Color(0.2, 0.22, 0.19), "radio": true})
 		"reb_fighter":
 			_person_parts(root, parts, Color(0.2, 0.22, 0.17), Color(0.22, 0.2, 0.17), Color(0.4, 0.34, 0.24), Color(0, 0, 0, 0), SKIN[2], tc, {"gun": "ak", "scarf": true, "scarf_col": Color(0.12, 0.12, 0.12), "beard": false})
+		"reb_sniper":
+			_person_parts(root, parts, Color(0.46, 0.4, 0.28), Color(0.42, 0.37, 0.27), Color(0.3, 0.32, 0.22), Color(0, 0, 0, 0), SKIN[1], tc, {"gun": "scope", "scarf": true, "scarf_col": Color(0.55, 0.5, 0.38), "backpack": true, "pack_col": Color(0.33, 0.3, 0.2)})
 		"reb_rpg":
 			_person_parts(root, parts, Color(0.3, 0.27, 0.2), Color(0.3, 0.28, 0.22), Color(0.3, 0.33, 0.25), Color(0, 0, 0, 0), SKIN[1], tc, {"gun": "rpg", "scarf": true, "scarf_col": Color(0.7, 0.68, 0.6), "backpack": true, "pack_col": Color(0.3, 0.3, 0.2)})
 		"reb_saboteur":

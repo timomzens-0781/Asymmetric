@@ -12,16 +12,18 @@ const KIND_COL := {
 	"sensitive": Color(0.85, 0.1, 0.1), "strike": Color(1.0, 0.9, 0.3), "aid": Color(0.4, 0.7, 1.0),
 	"corridor": Color(0.4, 0.7, 1.0), "briefing": Color(0.4, 0.7, 1.0), "launch": Color(1.0, 0.55, 0.3),
 	"recruit": Color(0.75, 0.45, 1.0), "aid_attacked": Color(0.5, 1.0, 0.6), "hub_found": Color(0.45, 0.8, 0.45), "storm": Color(1.0, 0.45, 0.2),
+	"shield": Color(1.0, 0.75, 0.2), "staged": Color(1.0, 0.4, 0.8), "jam": Color(0.9, 0.3, 0.3), "smoke": Color(0.75, 0.78, 0.85),
 }
 const KIND_NAME := {
 	"casualties": "Zivile Opfer", "upload": "Veröffentlichung", "evidence": "Beweise", "level": "Eskalationsstufe",
 	"hub": "Tunnelknoten zerstört", "press": "Presse / Klinik / Schule", "strike": "Schlag angefordert", "aid": "Hilfsmaßnahme",
 	"launch": "Raketenabschuss", "recruit": "Freiwillige", "aid_attacked": "Hilfe angegriffen", "hub_found": "Knoten entdeckt", "storm": "Häuserkampf",
+	"shield": "Schutzschilde", "staged": "Inszenierung", "jam": "Störsender", "smoke": "Rauchschleier",
 }
 const CAUSE_COL := {
 	"strike": Color(1.0, 0.55, 0.2), "collapse": Color(0.9, 0.35, 0.3), "direct": Color(1.0, 0.25, 0.25),
 	"ambiguous": Color(0.85, 0.7, 0.3), "press": Color(0.85, 0.25, 0.6), "sensitive": Color(0.7, 0.3, 0.9),
-	"check": Color(0.5, 0.7, 0.9), "other": Color(0.6, 0.6, 0.6),
+	"check": Color(0.5, 0.7, 0.9), "shield": Color(1.0, 0.75, 0.2), "staged": Color(1.0, 0.4, 0.8), "other": Color(0.6, 0.6, 0.6),
 }
 
 var total_time := 1.0
@@ -53,6 +55,8 @@ func _kind_score(e: Dictionary) -> float:
 		"upload": return 30.0 + w * 4.0
 		"evidence": return 30.0 + w * 3.0
 		"aid_attacked": return 95.0
+		"staged": return 85.0
+		"shield": return 70.0
 	return 0.0
 
 func _pick_turning_points() -> void:

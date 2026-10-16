@@ -188,6 +188,9 @@ func _show_tips(s: int) -> void:
 			"Tipp: G = zivile Tarnung, B = Sprengfalle, H = Feuer halten für den perfekten Hinterhalt.",
 			"Tipp: Knoten wählen, N drücken, Ziel-Knoten anklicken: Besatzungen reisen unsichtbar durch den Tunnel.",
 			"Tipp: Zivile Opfer machen Viertel wütend – dort melden sich Freiwillige und fließen Spenden.",
+			"Tipp: F3 stellt Zivilisten als Schutzschilde vor deine Stellung – die Armee stellt das Feuer ein. Aber sie sammelt Beweise!",
+			"Tipp: F4 inszeniert Klinik oder Schule: wird sie getroffen, löst das 2,5-fache Empörung aus.",
+			"Tipp: Scharfschützen im Haus (Reichweite 50 m) halten Infanterie auf Abstand. Rauch (F6) deckt den Rückzug.",
 		]
 	var i := 0
 	for t in tips:

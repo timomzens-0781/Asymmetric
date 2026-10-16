@@ -387,7 +387,7 @@ func _own_units() -> Array:
 func _own_structures() -> Array:
 	var a: Array = []
 	for e in selected:
-		if is_instance_valid(e) and e.alive and e is Structure and e.team == team:
+		if is_instance_valid(e) and e.alive and e is Structure and (e.team == team or not (e as Structure).garrison_of(team).is_empty()):
 			a.append(e)
 	return a
 
@@ -398,6 +398,13 @@ func _right_click(mb: InputEventMouseButton) -> void:
 		return
 	var units := _own_units()
 	var e := hover_entity
+	if units.is_empty():
+		# Haus mit eigener Besatzung gewaehlt: Rechtsklick fuehrt die Besatzung heraus (Marsch-/Angriffsbefehl)
+		for st in _own_structures():
+			if not (st as Structure).hub and (st as Structure).produces.is_empty():
+				units.append_array((st as Structure).garrison_of(team))
+		if not units.is_empty():
+			units = units.filter(func(u): return u is Unit and not (u as Unit).is_civ)
 	if units.is_empty():
 		# Gebaeude: Sammelpunkt setzen (Rechtsklick auf anderen Tunnelknoten: Tunnel-Sammelpunkt)
 		if e is Structure and (e as Structure).hub and e.team == team and team == U.TEAM_REB:
@@ -572,7 +579,7 @@ func _key(k: InputEventKey) -> void:
 				if u.garrison != null:
 					u.ungarrison()
 			for s in _own_structures():
-				for u in s.garrisoned.duplicate():
+				for u in (s as Structure).garrison_of(team):
 					(u as Unit).ungarrison()
 		KEY_F:
 			if _own_units().any(func(u): return u.manual_only):
@@ -596,7 +603,7 @@ func _key(k: InputEventKey) -> void:
 func ability_order() -> Array:
 	if team == U.TEAM_ADF:
 		return ["precision", "salvo", "airstrike", "warning", "scan", "evidence", "convoy", "fieldhosp", "corridor", "briefing"]
-	return ["upload", "donate"]
+	return ["upload", "donate", "shield", "staged", "jam", "smoke"]
 
 func _centroid(arr: Array) -> Vector3:
 	var c := Vector3.ZERO

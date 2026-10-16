@@ -253,12 +253,11 @@ func _layout() -> void:
 	info.position = Vector2(minimap.size.x + 16, 5)
 	info.size = Vector2(minf(W - minimap.size.x - 16 - 316, 640), BOT_H - 10)
 	card.position = Vector2(W - 5 * 58 - 8, 6)
-	var two_cols := team == U.TEAM_ADF
-	var n_ab := 5 if team == U.TEAM_ADF else 2
-	abil_panel.size = Vector2(122 if two_cols else 64, n_ab * 57 + (36 if team == U.TEAM_ADF else 0) + 8)
-	abil_panel.position = Vector2(W - (128 if two_cols else 70), TOP_H + 30)
+	var n_ab := 5 if team == U.TEAM_ADF else 3
+	abil_panel.size = Vector2(122, n_ab * 57 + (36 if team == U.TEAM_ADF else 0) + 8)
+	abil_panel.position = Vector2(W - 128, TOP_H + 30)
 	abil.position = Vector2(5, 4)
-	overlay.safe_rect = Rect2(8, TOP_H + 28, W - (144 if team == U.TEAM_ADF else 86), H - BOT_H - TOP_H - 32)
+	overlay.safe_rect = Rect2(8, TOP_H + 28, W - 144, H - BOT_H - TOP_H - 32)
 	banner.size = Vector2(minf(W * 0.8, 920), 54)
 	banner.position = Vector2((W - banner.size.x) * 0.5, 110)
 	banner_sub.size = Vector2(banner.size.x, 30)
@@ -310,7 +309,7 @@ func _build_ability_buttons() -> void:
 	for c in abil.get_children():
 		c.queue_free()
 	_abil_buttons.clear()
-	abil.columns = 2 if team == U.TEAM_ADF else 1
+	abil.columns = 2
 	var ids: Array = player.ability_order()
 	var i := 0
 	for id in ids:
@@ -419,12 +418,12 @@ func _build_card_items() -> Array:
 						Game.message("Keine Besatzung im Knoten", "warn", team),
 				"toggle": "tunnel",
 			})
-		if s.garrisoned.size() > 0 and s.team == team:
+		if not s.garrison_of(team).is_empty():
 			items.append({
 				"icon": "exit", "label": "Räumen", "hotkey": "V",
-				"tip_title": "Gebäude räumen [V]", "tip": "Alle Besatzungen verlassen das Gebäude.",
+				"tip_title": "Gebäude räumen [V]", "tip": "Alle eigenen Besatzungen verlassen das Gebäude. Einzelne Kämpfer wählst du über die Symbole in der Infoleiste.",
 				"action": func():
-					for u in s.garrisoned.duplicate():
+					for u in s.garrison_of(team):
 						(u as Unit).ungarrison(),
 			})
 		return items

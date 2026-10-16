@@ -176,6 +176,23 @@ func _draw_single(e: Entity, font: Font) -> void:
 			draw_string(font, Vector2(10, y), _occupancy_text(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.9, 0.5))
 			if s.team == player.team and s.hub:
 				draw_string(font, Vector2(260, y), "Besatzung: %d/%d" % [s.garrisoned.size(), s.garrison_cap], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.5, 1.0, 0.6))
+		var gar: Array = s.garrison_of(player.team)
+		if not gar.is_empty():
+			var gc := 22.0 if has_queue else 30.0
+			var gy := 68.0 if has_queue else size.y - 38.0
+			var step := gc + 4.0
+			var nshow := mini(gar.size(), 14)
+			draw_string(font, Vector2(10 + nshow * step + 6.0, gy + gc * 0.5 + 4.0), "◄ Besatzung: Klick wählt, Rechtsklick (Haus gewählt) führt heraus", HORIZONTAL_ALIGNMENT_LEFT, maxf(size.x - 90.0 - nshow * step, 60.0), 10, Color(0.5, 1.0, 0.6))
+			for i in range(nshow):
+				var gu: Entity = gar[i]
+				if not is_instance_valid(gu):
+					continue
+				var gr := Rect2(Vector2(10 + i * step, gy), Vector2(gc, gc))
+				draw_rect(gr, Color(0.1, 0.09, 0.08))
+				draw_rect(gr, U.team_color(gu.team), false, 1.5)
+				Icons.draw(self, (gu as Unit).def.get("icon", "inf"), gr.grow(-4), Color(0.93, 0.88, 0.76))
+				_hp_bar(Vector2(gr.position.x, gr.end.y + 1), gc, gu.hp / gu.max_hp, 3.0)
+				_hit_icons.append({"rect": gr, "entity": gu})
 		if has_queue:
 			_draw_queue(s, Vector2(10, size.y - 40), font)
 

@@ -139,9 +139,22 @@ Sieg: alle sieben Tunnelknoten zerstören oder sichern. Niederlage: Kommandozent
 
 ### Hadar-Front – Werkzeuge
 
-Kämpfer (tarnbar), RPG-Schütze (tarnbar), Technical, Raketenrampe (tarnbar, provoziert), Medien-Team,
-Sprengfallen-Leger. Produktion in den **Tunnelknoten**; Einkommen steigt mit der Empörung (Spenden!).
-Fähigkeiten: **Upload** und **Spendenaufruf**.
+Kämpfer (tarnbar), RPG-Schütze (tarnbar), **Scharfschütze** (50 m Reichweite, tarnbar), Technical, Raketenrampe (tarnbar, provoziert),
+Medien-Team, Sprengfallen-Leger. Produktion in den **Tunnelknoten**; Einkommen steigt mit der Empörung (Spenden!).
+
+Fähigkeiten (F1–F6) – die „fiesen Tricks“:
+
+| Taste | Fähigkeit | Wirkung |
+|---|---|---|
+| F1 | **Upload** | veröffentlicht das gesammelte Videomaterial |
+| F2 | **Spendenaufruf** | verwandelt Sympathie in Geld |
+| F3 | **Menschliche Schutzschilde** | zwingt bis zu 8 Zivilisten im Zielgebiet 40 s lang, sich um Kämpfer/besetzte Häuser zu stellen. Die Armee stellt dort das Feuer ein (Feuerdisziplin) – tötet sie doch Zivilisten, zählt das als eigene, besonders schwere Empörungsursache. Preis: Aurelia sammelt Beweise, die Wut im Viertel sinkt |
+| F4 | **Inszenierung (Klinik/Schule)** | sofort Videomaterial, das Gebäude gilt als „heiß“ (Köder) und ein Treffer löst ×2,5 Empörung aus. Aurelia bekommt Beweise für „militärische Nutzung“ |
+| F5 | **Störsender** | 25 s lang fallen Drohnen, Präzisionsschlag, Aufklärungsflug und Gegenbatterie-Radar aus |
+| F6 | **Rauchschleier** | 25 s lang sieht niemand weiter als 6 m in oder durch den Rauch |
+
+**Besatzungen:** Befindet sich eigene Besatzung in einem Haus, erscheint sie als Symbole in der Infoleiste (Klick wählt, Rechtsklick auf den Boden bei gewähltem
+Haus führt alle heraus, `V` räumt). Aus Häusern wird durch die „Fenster“ geschossen (Reichweitenbonus ab Fassade) – wer aus einem Tunnelknoten feuert, verrät ihn.
 Sieg: Empörung 100 % oder Kommandozentrale zerstört. Niederlage: alle Tunnelknoten verloren.
 
 ---

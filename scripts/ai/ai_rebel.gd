@@ -65,10 +65,54 @@ func _think() -> void:
 	_media_ops()
 	_ied_ops()
 	_retreat_wounded()
+	_tricks()
 	if Game.ability_ready(team, "donate") and Game.outrage >= 20.0:
 		Game.use_ability(team, "donate")
 	if Game.ability_ready(team, "upload") and Game.footage > 4.0:
 		Game.use_ability(team, "upload")
+
+# ----------------------------------------------------------------------------- Fiese Tricks
+func _tricks() -> void:
+	if _diff() < 0.9 and _rng.randf() < 0.5:
+		return
+	var hubs := _alive_hubs()
+	# Rauch & Schutzschilde an bedrohten Knoten bzw. Verstecken
+	if Game.ability_ready(team, "shield") or Game.ability_ready(team, "smoke"):
+		var best: Structure = null
+		var bt := 0.0
+		for h in hubs:
+			var th := _hub_threat(h)
+			if th > bt:
+				bt = th
+				best = h
+		if best != null:
+			if bt >= 1.5 and Game.ability_ready(team, "shield") and _civs_near(best.position, 16.0) >= 3.0:
+				Game.use_ability(team, "shield", best.position)
+			elif bt >= 3.0 and Game.ability_ready(team, "smoke"):
+				Game.use_ability(team, "smoke", best.position + (world.city.base_assembly - best.position).normalized() * 6.0)
+	# Inszenierung: Klinik / Schule, sobald die Armee in die Naehe kommt
+	if Game.ability_ready(team, "staged") and Game.outrage < 85.0:
+		for s in world.structures:
+			if not s.alive or not (s.kind_class in ["hospital", "school"]) or s.staged_t > 0.0:
+				continue
+			var armed := 0
+			for o in world.dyn.query(s.position, 70.0):
+				if o is Unit and o.alive and o.team == U.TEAM_ADF and not (o as Unit).weapons.is_empty() and U.dist2d(o.position, s.position) < 65.0:
+					armed += 1
+			if armed >= 2:
+				Game.use_ability(team, "staged", s.position)
+				break
+	# Stoersender gegen Luftunterstuetzung
+	if Game.ability_ready(team, "jam") and Game.jam_t <= 0.0:
+		var air := 0
+		for u in world.units:
+			if u.alive and u.team == U.TEAM_ADF and u.layer == "air":
+				air += 1
+		var threat := 0.0
+		for h in hubs:
+			threat += _hub_threat(h)
+		if air >= 2 and threat >= 3.0:
+			Game.use_ability(team, "jam")
 
 # ----------------------------------------------------------------------------- Tunnelnetz
 func _hub_threat(h: Structure) -> float:
@@ -134,7 +178,7 @@ func _produce() -> void:
 	# Wer Geld uebrig hat, bildet mehr aus (Spenden durch Wut fliessen in die Produktion)
 	var k := _diff() * (1.0 + clampf((Game.budget[team] - 1200.0) / 2500.0, 0.0, 0.5))
 	var wish := [
-		["reb_fighter", int(16 * k), 3.0], ["reb_rpg", int(6 * k), 2.0], ["reb_tech", int(3 * k), 1.5],
+		["reb_fighter", int(16 * k), 3.0], ["reb_rpg", int(6 * k), 2.0], ["reb_sniper", int(3 * k), 1.4], ["reb_tech", int(3 * k), 1.5],
 		["reb_launcher", 2 + int(_diff()), 1.8], ["reb_media", 2, 2.2], ["reb_saboteur", 1 + int(_diff()), 1.2],
 	]
 	var best_k := ""
@@ -187,7 +231,7 @@ func _assign_infantry() -> void:
 	if spots.is_empty():
 		return
 	for u in _all_units():
-		if u.garrison != null or not (u.kind == "reb_fighter" or u.kind == "reb_rpg"):
+		if u.garrison != null or not (u.kind == "reb_fighter" or u.kind == "reb_rpg" or u.kind == "reb_sniper"):
 			continue
 		if u.order_type != "idle" or u.ai_role != "":
 			continue

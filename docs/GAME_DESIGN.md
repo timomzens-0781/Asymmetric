@@ -82,6 +82,22 @@ Aurelias Gegenmittel:
 | Evakuierungskorridor (F9) | 150 | 50 s | Radius 40 m, 45 s: Zivilisten laufen hinaus, kein Nachschub aus Häusern, Verdachtszuwachs ×2,2 für Verbliebene |
 | Presse-Briefing (F10) | 250 | 90 s | Empörung −2,5 %; 60 s lang wirken neue Zuwächse nur zu 70 % |
 
+## 3c. Hadar-Front: Tricks
+
+| Fähigkeit | Kosten | Abklingzeit | Wirkung |
+|---|---|---|---|
+| Upload (F1) | 0 | 4 s | Videomaterial ×1,35 → Empörung |
+| Spendenaufruf (F2) | 0 | 70 s | 150 + 9·Empörung Budget |
+| Menschliche Schutzschilde (F3) | 150 | 50 s | ≤ 8 Zivilisten im Radius 16 m, 40 s; sie stellen sich um den nächsten Kämpfer/besetztes Haus (`Unit.force_shield`). ADF-Auto-Ziel: kein Feuer auf Ziele mit ≥ 2 Schilden im Umkreis (`World.shield_near`). Tote Schilde: Ursache `shield` (Schwere ×1,6). Nebenwirkung: +0,5 Beweise je Zivilist, Wut −2 je Zivilist |
+| Inszenierung (F4) | 200 | 60 s | Klinik/Schule: 60 s `staged_t`, `hot_t` dauerhaft; +4…9 Videomaterial; Zerstörung ×2,5 (Ursache `staged`), bis zu 4 Treffermeldungen je +1,5 Empörung; +2 Beweise für Aurelia, Wut +8 |
+| Störsender (F5) | 180 | 70 s | `Game.jam_t` = 25 s: Luftfahrzeuge blind & ohne Zielerfassung, Präzisionsschlag/Aufklärungsflug gesperrt, kein Gegenbatterie-Radar |
+| Rauchschleier (F6) | 120 | 35 s | `World.smokes` (Radius 15 m, 25 s): jenseits von 6 m kein Sichtkontakt zu/aus dem Rauch |
+
+* **Scharfschütze** (200, 55 HP, Reichweite 50 m, 68 Schaden alle 3,4 s, Sicht 48 m, tarnbar) – tödlich aus Fenstern.
+* **Besatzungsfeuer**: Eine Garnison schießt mit Reichweitenbonus `Radius·0,8 + 3` m, sieht entsprechend weiter und feuert von der zugewandten Fassade.
+  Wer aus einem Tunnelknoten auf die Armee schießt, wird sofort entdeckt (`Structure.exposed_by_fire`).
+* Wirtschaft: Start 2800, Einkommen 3,6/s je Knoten ×(1+Empörung/80) + 1,5.
+
 ## 3d. Häuserkampf & Sonderbefehle
 
 * **Gebäude**: Trefferpunkte ×1,5; Schadensmultiplikator gegen Gebäude: Handfeuerwaffe 0,03 (vorher 0,10), Panzerabwehr 0,55 (vorher 0,8),
@@ -120,7 +136,8 @@ Wichtige Dynamiken:
   Bei Tunnelknoten mit Bewohnern gibt sie erst eine **Warnung**, dann schlägt sie zu.
 * **Hadar-KI**: besetzt Häuser entlang der Anmarschwege (Hinterhalt), lässt getarnte Streuner patrouillieren, schickt
   Raketenrampen in **dicht besiedelte Gebiete** (maximale Zivilistenzahl im Umkreis), stellt Medien-Teams in die
-  Nähe des Geschehens, legt Sprengfallen auf dem Anmarschweg und führt Gegenangriffe nur bei lokaler Überlegenheit.
+  Nähe des Geschehens, legt Sprengfallen auf dem Anmarschweg und führt Gegenangriffe nur bei lokaler Überlegenheit. Sie nutzt auch die
+  Tricks: Rauch und Schutzschilde an bedrohten Knoten, Inszenierung von Klinik/Schule bei Annäherung der Armee, Störsender gegen Luftunterstützung.
 
 Schwierigkeit (0/1/2) skaliert Startbudget, Einkommen und Takt der KI.
 

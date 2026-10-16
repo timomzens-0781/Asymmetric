@@ -52,3 +52,11 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
 * Empörung nie direkt erhöhen, sondern über `Game.report_civilian_deaths` / `report_event_outrage` (berücksichtigt Kameras).
 * `Engine.time_scale` + `get_tree().paused` für Geschwindigkeit/Pause; Fx/Timer laufen darüber mit.
 * Headless gibt der Dummy-Renderer harmlose „Parameter "m" is null“-Fehler aus (Meshes) – ignorieren.
+
+## Hadar-Front-Tricks & Besatzungen (Runde 5)
+
+* Fähigkeiten `shield`/`staged`/`jam`/`smoke` (Data.ABILITIES, `Support._shield/_staged/_smoke`, `Game.jam_t`, `World.smokes`). Schilde: `Unit.shield_t`,
+  `force_shield`, `_sim_shield`; Feuerdisziplin in `World.can_auto_target` über `shield_near`. Ursachen `shield`/`staged` in `Game.CAUSE_LABELS`.
+* Besatzungen: `Structure.garrison_of(team)`, `window_pos`, `exposed_by_fire`; `Unit._sim_garrison` (Reichweitenbonus `_garrison_range_bonus`); die Sicht
+  Garnisonierter wird in `World._vis_tick` um denselben Bonus erweitert. Infoleiste zeigt Besatzungs-Symbole (`InfoPanel`), Rechtsklick bei gewähltem Haus führt heraus.
+* Tests einzeln: `-- only=<Name>` (z. B. `only=reb_tricks`, `only=garrison_fire`), `REPEAT=n` als Umgebungsvariable wiederholt den Test.

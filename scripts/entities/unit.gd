@@ -39,6 +39,9 @@ var has_ground_target := false
 var hold := false
 var garrison: Structure = null
 var storming: Structure = null       # ADF-Infanterie im Haeuserkampf (unsichtbar im Gebaeude)
+var shield_t := 0.0                # Zivilist als Schutzschild missbraucht (Restdauer)
+var shield_anchor: Entity = null
+var _shield_re := 0.0
 var tunnel_t := 0.0                 # > 0: gerade im Tunnelnetz unterwegs (Ziel = garrison)
 var tunnel_dur := 0.0
 var tunnel_pts := PackedVector3Array()   # Hubs der Route (fuer die Anzeige)
@@ -761,7 +764,7 @@ func _do_shot(w: Dictionary, t_pos: Vector3) -> void:
 	var idx := weapons.find(w)
 	var from := _muzzle_pos(idx if idx <= 1 else 0)
 	if garrison != null:
-		from = global_position + Vector3(0, 3.0, 0)
+		from = garrison.window_pos(t_pos)
 	var proj: String = w.get("proj", "hit")
 	var dist := U.dist2d(position, t_pos)
 	world.noise(position, 32.0, 1)
@@ -803,31 +806,40 @@ func _do_shot(w: Dictionary, t_pos: Vector3) -> void:
 				world.shake_at(position, 0.5)
 
 # ----------------------------------------------------------------------------- Garnison-Sim
+func _garrison_range_bonus() -> float:
+	return garrison.radius * 0.8 + 3.0     # Schiessscharten: Reichweite zaehlt ab Fassade
+
 func _sim_garrison(dt: float) -> void:
 	for w in weapons:
 		w.cdl -= dt
 	if weapons.is_empty():
 		return
+	var bonus := _garrison_range_bonus()
 	_acq_t -= dt
 	if _acq_t <= 0.0:
 		_acq_t = 0.3 + randf() * 0.2
-		if target != null and (not target.alive or not _in_range_any(target, 1.0) or not world.can_auto_target(self, target)):
+		if target != null and (not target.alive or U.dist2d(position, target.position) - target.radius * 0.6 > _longest_range() + bonus or not world.can_auto_target(self, target)):
 			target = null
 		if target == null and not is_launcher and not hold:
-			target = world.find_target(self, _longest_range())
+			target = world.find_target(self, _longest_range() + bonus)
 	if target != null and target.alive:
 		var d := U.dist2d(position, target.position) - target.radius * 0.6
 		for w in weapons:
-			if w.cdl <= 0.0 and d <= w.range:
+			if w.cdl <= 0.0 and d <= w.range + bonus:
 				w.cdl = w.cd * randf_range(0.95, 1.15)
-				garrison.hot_t = 7.0
 				combat_t = 0.0
 				if can_conceal:
 					reveal(0.0)
+				garrison.hot_t = 12.0
 				_do_shot(w, target.position)
+				if target is Unit and target.team == U.TEAM_ADF:
+					garrison.exposed_by_fire()
 
 # ----------------------------------------------------------------------------- Zivilisten
 func _sim_civilian(dt: float) -> void:
+	if shield_t > 0.0:
+		_sim_shield(dt)
+		return
 	_civ_wait -= dt
 	if _flee_t > 0.0:
 		_flee_t -= dt
@@ -858,8 +870,33 @@ func _sim_civilian(dt: float) -> void:
 			return
 		_civ_state = "wander"
 
+## Wird gezwungen, sich als Schutzschild neben einen Kaempfer / ein Versteck zu stellen
+func force_shield(anchor: Entity, secs: float) -> void:
+	shield_t = secs
+	shield_anchor = anchor
+	_flee_t = 0.0
+	_civ_state = "shield"
+	_shield_re = 0.0
+
+func _sim_shield(dt: float) -> void:
+	shield_t -= dt
+	if shield_t <= 0.0 or shield_anchor == null or not is_instance_valid(shield_anchor) or not shield_anchor.alive:
+		shield_t = 0.0
+		shield_anchor = null
+		_civ_state = "wander"
+		_civ_wait = randf_range(0.5, 2.0)
+		return
+	_shield_re -= dt
+	var ang := float(id) * 2.399
+	var ring: float = shield_anchor.radius + 1.7 + float(id % 3) * 0.5
+	var spot := shield_anchor.position + Vector3(cos(ang), 0.0, sin(ang)) * ring
+	spot.y = 0.0
+	if U.dist2d(position, spot) > 1.2 and (_shield_re <= 0.0 or path_i >= path.size()):
+		_shield_re = 1.2
+		_set_path(world.nav.nearest_free_pos(spot, grid, 4))
+
 func panic_from(src: Vector3, secs: float = 6.0) -> void:
-	if not is_civ or not alive:
+	if not is_civ or not alive or shield_t > 0.0:
 		return
 	if garrison != null:
 		return
@@ -877,7 +914,7 @@ func panic_from(src: Vector3, secs: float = 6.0) -> void:
 
 ## Zivilist laeuft gezielt zu einem Ziel (Evakuierungskorridor)
 func flee_to(dest: Vector3, secs: float) -> void:
-	if not is_civ or not alive or garrison != null:
+	if not is_civ or not alive or garrison != null or shield_t > 0.0:
 		return
 	_flee_t = secs
 	_civ_state = "flee"
