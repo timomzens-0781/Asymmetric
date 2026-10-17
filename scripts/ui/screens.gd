@@ -15,6 +15,12 @@ var title_root: Control
 var brief_root: Control
 var pause_root: Control
 var end_root: Control
+var help_root: Control
+var _help_panel: Panel
+var _help_text: RichTextLabel
+var _help_tabs: Array = []
+var _help_tab := 0
+var _help_back := ""
 var _difficulty := 1
 var _diff_btns: Array = []
 var _brief_side := 0
@@ -35,6 +41,7 @@ func _ready() -> void:
 	_build_brief()
 	_build_pause()
 	_build_end()
+	_build_help()
 	hide_all()
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -44,9 +51,10 @@ func hide_all() -> void:
 	brief_root.visible = false
 	pause_root.visible = false
 	end_root.visible = false
+	help_root.visible = false
 
 func is_open() -> bool:
-	return title_root.visible or brief_root.visible or pause_root.visible or end_root.visible
+	return title_root.visible or brief_root.visible or pause_root.visible or end_root.visible or help_root.visible
 
 # ----------------------------------------------------------------------------- Helfer
 func _style(bg: Color, edge: Color = Color(0, 0, 0, 0), bw: int = 0, radius: int = 3) -> StyleBoxFlat:
@@ -161,8 +169,10 @@ func _build_title() -> void:
 		_refresh_sound())
 	sb.position = Vector2(0, 0)
 	_sound_btns.append(sb)
-	var qb := _button(_bottom_row, "Beenden", Vector2(120, 36), func(): get_tree().quit())
-	qb.position = Vector2(160, 0)
+	var hb := _button(_bottom_row, "Hilfe", Vector2(100, 36), func(): show_help(-1, "title"))
+	hb.position = Vector2(160, 0)
+	var qb := _button(_bottom_row, "Beenden", Vector2(110, 36), func(): get_tree().quit())
+	qb.position = Vector2(270, 0)
 	_ver = _lbl(title_root, "Prototyp · Godot 4 · Fiktives Szenario: Qadira, Hadar", 12, Color(0.65, 0.62, 0.55), 2)
 	_set_diff(1)
 	_refresh_sound()
@@ -251,6 +261,8 @@ func _build_pause() -> void:
 	_pause_gfx.position = Vector2(380, y + 104)
 	var b3 := _button(_pause_panel, "Hauptmenü", Vector2(320, 44), func(): menu_requested.emit())
 	b3.position = Vector2(40, y + 156)
+	var bh := _button(_pause_panel, "Hilfe [F12]", Vector2(320, 44), func(): show_help(-1, "pause"))
+	bh.position = Vector2(380, y + 156)
 	var ctrl := _lbl(_pause_panel, "Steuerung\nWASD/Pfeile/Rand: Kamera · Q/E/Mittelmaus: Drehen · Rad: Zoom\nLinksklick/Rahmen: Wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen\nT: Angriffsbewegung · X: Stopp · H: Feuer halten · G: Tarnen · B: Sprengfalle\nF: Feuerbefehl · V: Gebäude räumen · N: Tunnelreise · R: Einsatzregeln · F1–F10: Fähigkeiten\nBesatzung: Haus wählen → Symbole in der Infoleiste, Rechtsklick führt heraus · V räumt\nStrg+1–9: Gruppe speichern · 1–9: abrufen · Leertaste: letzter Alarm", 12, Color(0.75, 0.72, 0.64), 2)
 	ctrl.position = Vector2(40, y + 214)
 
@@ -260,6 +272,86 @@ func show_pause() -> void:
 	_pause_sound.text = "Sound: an" if Sfx.sfx_on else "Sound: aus"
 	_pause_gfx.text = "Grafik: " + Gfx.QUALITY_NAMES[Gfx.quality]
 	_layout()
+
+# ----------------------------------------------------------------------------- Hilfe
+const HELP_TABS := ["Grundlagen", "Aurelia", "Hadar-Front", "Steuerung"]
+
+func _build_help() -> void:
+	help_root = _new_root()
+	_dim(help_root, 0.72)
+	_help_panel = Panel.new()
+	_help_panel.add_theme_stylebox_override("panel", _style(Color(0.07, 0.065, 0.06, 0.98), C_EDGE, 2, 4))
+	help_root.add_child(_help_panel)
+	var t := _lbl(_help_panel, "HILFE", 30, Color(0.95, 0.76, 0.32), 5)
+	t.position = Vector2(30, 14)
+	for i in range(HELP_TABS.size()):
+		var tb := _button(_help_panel, HELP_TABS[i], Vector2(150, 36), func(): _set_help_tab(i))
+		tb.position = Vector2(200 + i * 158, 16)
+		_help_tabs.append(tb)
+	_help_text = RichTextLabel.new()
+	_help_text.bbcode_enabled = true
+	_help_text.scroll_active = true
+	_help_text.focus_mode = Control.FOCUS_NONE
+	_help_text.add_theme_font_size_override("normal_font_size", 15)
+	_help_text.add_theme_font_size_override("bold_font_size", 15)
+	_help_text.add_theme_color_override("default_color", C_TEXT)
+	_help_panel.add_child(_help_text)
+	var back := _button(_help_panel, "Zurück", Vector2(200, 42), func(): _close_help())
+	back.name = "BtnBack"
+
+func show_help(tab: int = -1, from: String = "pause") -> void:
+	_help_back = from
+	hide_all()
+	help_root.visible = true
+	if tab < 0:
+		tab = _help_tab
+	_set_help_tab(tab)
+	_layout()
+
+func _close_help() -> void:
+	help_root.visible = false
+	if _help_back == "title":
+		show_title()
+	else:
+		show_pause()
+
+func _set_help_tab(i: int) -> void:
+	_help_tab = i
+	for k in range(_help_tabs.size()):
+		(_help_tabs[k] as Button).disabled = (k == i)
+	_help_text.text = _help_bbcode(i)
+	_help_text.scroll_to_line(0)
+
+func _abil_block(team: int) -> String:
+	var s := ""
+	var i := 1
+	for id in Data.ABILITY_ORDER[team]:
+		var d: Dictionary = Data.ABILITIES[id]
+		var cost: String = "kostenlos" if d.cost <= 0 else U.fmt_money(d.cost)
+		s += "[color=#e8c060][b]F%d  %s[/b][/color]  [color=#9a9484](%s · Abklingzeit %d s)[/color]\n    %s\n" % [i, d.name, cost, int(d.cd), d.desc]
+		i += 1
+	return s
+
+func _unit_block(team: int) -> String:
+	var s := ""
+	for k in Data.UNITS.keys():
+		var d: Dictionary = Data.UNITS[k]
+		if d.team != team or d.cost <= 0:
+			continue
+		s += "[color=#e8c060][b]%s[/b][/color]  [color=#9a9484](%s)[/color]\n    %s\n" % [d.name, U.fmt_money(d.cost), d.desc]
+	return s
+
+func _help_bbcode(tab: int) -> String:
+	match tab:
+		0:
+			return "[color=#e8c060][b]Worum geht es?[/b][/color]\nDie [b]Empörung[/b] (Weltöffentlichkeit) entscheidet. Bei 35 % drohen Sanktionen (Budget gekürzt), bei 65 % gibt es eine Flugverbotszone, bei 100 % greift eine Koalition ein und Aurelia verliert. Aurelia gewinnt, wenn alle sieben Tunnelknoten zerstört oder gesichert sind – die Hadar-Front, wenn die Empörung 100 % erreicht oder die Kommandozentrale fällt.\n\n[color=#e8c060][b]Bilder und Beweise[/b][/color]\nZivile Opfer, getroffene Kliniken/Schulen und Fehlschläge werden zu [b]Videomaterial[/b]. Die Hadar-Front muss es per Upload (F1) veröffentlichen, dafür braucht sie ein lebendes Medien-Team. Aurelia sammelt [b]Beweise[/b] (Kämpfer in zivilen Gebäuden, Raketenabschüsse, Missbrauch von Zivilisten) und kann sie veröffentlichen, um die Empörung zu senken.\n\n[color=#e8c060][b]Tarnung und Verdacht[/b][/color]\nKämpfer können sich als Zivilisten tarnen. Aufklärer und Drohnen steigern den Verdacht gegen Personen; wer in der Nähe feuert, ist enttarnt. Auch [b]Gebäude[/b] sammeln Verdacht, wenn Rebellen dort ein- und ausgehen oder sich verstecken – ein gelbes „?“ zeigt es an. [b]Durchsuchen / Stürmen[/b] (Y) klärt es: leere Häuser dauern 5 s, besetzte führen zum Häuserkampf.\n\n[color=#e8c060][b]Tunnelnetz[/b][/color]\nTunnelknoten sehen aus wie Wohnhäuser. Die Hadar-Front kann Besatzungen unterirdisch von Knoten zu Knoten schicken (N). Wer aus einem Knoten schießt, verrät ihn.\n\n[color=#e8c060][b]Wut der Viertel[/b][/color]\nZivile Opfer machen ein Viertel wütend – dort melden sich Freiwillige und fließen Spenden. Hilfskonvoi, Feldlazarett, Korridor und Briefing (Aurelia) beruhigen die Lage."
+		1:
+			return "[color=#e8c060][b]AURELISCHE STREITKRÄFTE – Fähigkeiten[/b][/color]\n" + _abil_block(0) + "\n[color=#e8c060][b]Einheiten[/b][/color]\n" + _unit_block(0)
+		2:
+			return "[color=#e8c060][b]HADAR-FRONT – Fähigkeiten[/b][/color]\n" + _abil_block(1) + "\n[color=#e8c060][b]Einheiten[/b][/color]\n" + _unit_block(1)
+		_:
+			return "[color=#e8c060][b]Kamera[/b][/color]  WASD / Pfeile / Bildschirmrand · Q/E oder Mittelmaus: drehen · Mausrad: zoomen · Rücktaste: auf Auswahl springen\n[color=#e8c060][b]Auswahl & Befehle[/b][/color]  Linksklick / Rahmen: wählen · Rechtsklick: Befehl · Strg+Rechtsklick: Feuer erzwingen · Strg+1–9: Gruppe speichern · 1–9: abrufen\n[color=#e8c060][b]Kampf[/b][/color]  T: Angriffsbewegung · X: Stopp · H: Feuer halten · F: Feuerbefehl (Artillerie/Raketen) · P: Patrouille · K: Deckung · Y: Haus durchsuchen/stürmen (Aurelia)\n[color=#e8c060][b]Hadar-Front[/b][/color]  G: tarnen · B: Sprengfalle · N: Tunnelreise · V: Gebäude räumen · Rechtsklick auf Haus: Stellung beziehen · Haus wählen: Besatzung in der Infoleiste, Rechtsklick führt heraus\n[color=#e8c060][b]Aurelia[/b][/color]  C: Person kontrollieren · R: Einsatzregeln (streng / Feuer auf aktive Gebäude frei)\n[color=#e8c060][b]Fähigkeiten[/b][/color]  F1–F10 oder Buttons rechts (Shift beim Klicken: mehrfach einsetzen)\n[color=#e8c060][b]Sonstiges[/b][/color]  Leertaste: letzter Alarm · + / −: Spielgeschwindigkeit · Esc: Pause · F12: Hilfe · F11: Vollbild"
+	return ""
 
 # ----------------------------------------------------------------------------- Ende
 var _end_panel: Panel
@@ -361,6 +453,13 @@ func _layout() -> void:
 	_brief_btn.position = Vector2(bw - 290, bh - 68)
 	_pause_panel.size = Vector2(min(760.0, W - 40.0), 560)
 	_pause_panel.position = Vector2((W - _pause_panel.size.x) * 0.5, (H - 560) * 0.5)
+	var hw := minf(980.0, W - 30.0)
+	var hh := minf(680.0, H - 30.0)
+	_help_panel.size = Vector2(hw, hh)
+	_help_panel.position = Vector2((W - hw) * 0.5, (H - hh) * 0.5)
+	_help_text.position = Vector2(30, 66)
+	_help_text.size = Vector2(hw - 60, hh - 66 - 70)
+	_help_panel.get_node("BtnBack").position = Vector2(30, hh - 58)
 	var ew := minf(1160.0, W - 30.0)
 	var eh := minf(640.0, H - 30.0)
 	_end_panel.size = Vector2(ew, eh)

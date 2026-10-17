@@ -14,6 +14,7 @@ var search_t := 0.0              # Fortschritt der Durchsuchung (Sekunden ohne W
 var _obs_t := 0.0
 var _susp_warned := false
 const SEARCH_TIME := 5.0
+var _staged_fx_t := 0.0
 var _staged_ping := 0.0
 var _staged_pings := 0
 var staged_t := 0.0             # Klinik/Schule inszeniert (Koeder + Propaganda)
@@ -452,6 +453,11 @@ func _process(dt: float) -> void:
 	if staged_t > 0.0:
 		staged_t -= dt
 		hot_t = maxf(hot_t, 1.0)
+		_staged_fx_t -= dt
+		if _staged_fx_t <= 0.0:
+			_staged_fx_t = 3.0
+			world.fx.ring_ping(position, radius + 3.0, Color(1.0, 0.35, 0.75, 0.55), 2.2)
+			world.fx.flash(position + Vector3(0, size.y + 1.5, 0), 2.0, 0.12)
 	if hit_flash > 0.0:
 		hit_flash -= dt
 	if team != U.TEAM_CIV or hub:

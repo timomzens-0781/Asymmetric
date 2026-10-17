@@ -60,7 +60,7 @@ alle Modelle, Texturen, Effekte, Sounds und Musik werden prozedural erzeugt (Kos
 | Letzter Alarm | `Leertaste` |
 | Kontrollgruppen | `Strg+1…9` speichern, `1…9` abrufen (2× = Kamera hinschicken) |
 | Spielgeschwindigkeit | `+` / `−` |
-| Pause / Menü | `Esc` · Vollbild `F11` |
+| Pause / Menü | `Esc` · Vollbild `F11` · **Hilfe** `F12` (Grundlagen, Fähigkeiten & Einheiten beider Seiten, Steuerung) |
 
 Wird eine eigene Einheit beschossen, zeigt ein **roter Pfeil am Bildrand** (bzw. ein roter Ring auf dem Bildschirm) die Richtung und Entfernung des Feuergefechts; `Leertaste` springt dorthin.
 

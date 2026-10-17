@@ -29,6 +29,7 @@ static func run(m: Node) -> void:
 	m._take_shot_now("house")
 	Game.use_ability(1, "shield", house.position + Vector3(0, 0, 8))
 	Game.use_ability(1, "smoke", house.position + Vector3(14, 0, -6))
+	Game.use_ability(1, "jam")
 	await m.get_tree().create_timer(4.0).timeout
 	m._take_shot_now("shield")
 	m.get_tree().quit()

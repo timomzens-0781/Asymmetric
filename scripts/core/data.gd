@@ -248,6 +248,12 @@ const ABILITIES := {
 	},
 }
 
+## Reihenfolge der Fähigkeiten je Team (F1, F2, …)
+const ABILITY_ORDER := {
+	0: ["precision", "salvo", "airstrike", "warning", "scan", "evidence", "convoy", "fieldhosp", "corridor", "briefing"],
+	1: ["upload", "donate", "shield", "staged", "jam", "smoke"],
+}
+
 ## Empörungsstufen
 const OUTRAGE_L1 := 35.0   # Sanktionen
 const OUTRAGE_L2 := 65.0   # Flugverbotszone

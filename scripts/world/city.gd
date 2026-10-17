@@ -561,7 +561,13 @@ func _make_building_node(b: Dictionary, wall_override: Color) -> void:
 	var root := Node3D.new()
 	root.position = b.center
 	root.name = "Building%d" % b.id
-	var wall_c: Color = wall_override if wall_override.a > 0.0 else PALETTE[rng.randi() % PALETTE.size()]
+	var wall_c: Color = wall_override
+	if wall_override.a <= 0.0:
+		wall_c = PALETTE[rng.randi() % PALETTE.size()]
+		# jedes Haus ein wenig anders: Farbton, Saettigung, Helligkeit (Witterung, Neuanstrich)
+		var jr := RandomNumberGenerator.new()
+		jr.seed = int(b.id) * 131 + 7     # eigener Zufall: das Stadtlayout bleibt unveraendert
+		wall_c = Color.from_hsv(fposmod(wall_c.h + jr.randf_range(-0.018, 0.018), 1.0), clampf(wall_c.s * jr.randf_range(0.8, 1.2), 0.0, 1.0), clampf(wall_c.v * jr.randf_range(0.9, 1.05), 0.0, 1.0))
 	var mat := Gfx.shader_mat("res://scripts/gfx/shaders/facade.gdshader")
 	mat.set_shader_parameter("wall_color", wall_c)
 	mat.set_shader_parameter("trim_color", wall_c.lerp(Color(1, 0.97, 0.9), 0.55))
@@ -602,44 +608,174 @@ func _make_building_node(b: Dictionary, wall_override: Color) -> void:
 	var pmi := MeshInstance3D.new()
 	pmi.mesh = pmb.build(Gfx.vcol_mat(0.95, 0.0))
 	root.add_child(pmi)
-	_roof_details(root, b, wall_c)
+	var roof_x := Vector2(-1.0, 1.0)
+	if b.kind == "house":
+		roof_x = _massing_and_details(root, b, wall_c, mat)
+	_roof_details(root, b, wall_c, roof_x)
 	b.node = root
 	add_child(root)
 
-func _roof_details(root: Node3D, b: Dictionary, wall_c: Color) -> void:
+## Fassaden- und Dachvielfalt: Staffelgeschoss, Balkone, Mashrabiya-Erker, Klimageraete, Schattendach, Kuppelhaeuschen.
+## Nutzt einen eigenen Zufallsgenerator je Gebaeude (Stadtlayout bleibt unveraendert). Liefert den freien Dachbereich (Faktor auf x).
+func _massing_and_details(root: Node3D, b: Dictionary, wall_c: Color, mat: ShaderMaterial) -> Vector2:
+	var sz: Vector3 = b.size
+	var r := RandomNumberGenerator.new()
+	r.seed = int(b.id) * 7919 + 17
+	var old: bool = b.zone == "old" or b.zone == "old_s"
+	var trim_col := wall_c.lerp(Color(1, 0.97, 0.9), 0.55)
+	var floors := int(round((sz.y - 0.7) / 3.3))
+	var free := Vector2(-1.0, 1.0)
+	var mb := MeshBuilder.new()
+	mb.ao_strength = 0.25
+	var any := false
+	# Staffelgeschoss: oberes Stockwerk zurueckgesetzt auf einer Haelfte, davor eine Dachterrasse
+	if floors >= 3 and sz.x > 9.0 and sz.z > 7.0 and r.randf() < 0.28:
+		var side := 1.0 if r.randf() < 0.5 else -1.0
+		var ux := sz.x * r.randf_range(0.42, 0.55)
+		var ub := Vector3(ux, 3.1, sz.z - 1.0)
+		var upos := Vector3(side * (sz.x * 0.5 - ux * 0.5 - 0.2), sz.y + ub.y * 0.5, 0)
+		var m2 := mat.duplicate() as ShaderMaterial
+		m2.set_shader_parameter("box_size", ub)
+		m2.set_shader_parameter("building_h", ub.y)
+		m2.set_shader_parameter("shop", 0.0)
+		var mi2 := MeshInstance3D.new()
+		var bm2 := BoxMesh.new()
+		bm2.size = ub
+		mi2.mesh = bm2
+		mi2.position = upos
+		mi2.material_override = m2
+		root.add_child(mi2)
+		# Attika des Staffelgeschosses
+		mb.box(Vector3(upos.x, sz.y + ub.y + 0.2, 0), Vector3(ub.x + 0.1, 0.4, ub.z + 0.1), trim_col * 0.97)
+		any = true
+		free = Vector2(-1.0, -0.15) if side > 0.0 else Vector2(0.15, 1.0)
+	# Balkone an einer Fassade
+	if floors >= 3 and not old and r.randf() < 0.42:
+		var along_x := r.randf() < 0.5
+		var sgn := 1.0 if r.randf() < 0.5 else -1.0
+		var len: float = sz.x if along_x else sz.z
+		var n_cols := int(len / 3.4)
+		var metal := Color(0.16, 0.17, 0.18)
+		for f in range(1, floors):
+			for k in range(n_cols):
+				if r.randf() > 0.5:
+					continue
+				var off := (k - (n_cols - 1) * 0.5) * 3.4
+				var y := f * 3.3 + 0.12
+				var depth := 0.85
+				var p := Vector3(off, y, sgn * (sz.z * 0.5 + depth * 0.5 - 0.02)) if along_x else Vector3(sgn * (sz.x * 0.5 + depth * 0.5 - 0.02), y, off)
+				var dims := Vector3(1.7, 0.12, depth) if along_x else Vector3(depth, 0.12, 1.7)
+				mb.box(p, dims, trim_col * 0.95)
+				# Gelaender: Handlauf + zwei Staebe-Fronten
+				var rail_y := y + 0.55
+				if along_x:
+					mb.box(Vector3(p.x, rail_y, p.z + sgn * depth * 0.5), Vector3(1.7, 0.05, 0.05), metal)
+					mb.box(Vector3(p.x - 0.8, rail_y - 0.25, p.z + sgn * depth * 0.5), Vector3(0.04, 0.55, 0.04), metal)
+					mb.box(Vector3(p.x + 0.8, rail_y - 0.25, p.z + sgn * depth * 0.5), Vector3(0.04, 0.55, 0.04), metal)
+				else:
+					mb.box(Vector3(p.x + sgn * depth * 0.5, rail_y, p.z), Vector3(0.05, 0.05, 1.7), metal)
+					mb.box(Vector3(p.x + sgn * depth * 0.5, rail_y - 0.25, p.z - 0.8), Vector3(0.04, 0.55, 0.04), metal)
+					mb.box(Vector3(p.x + sgn * depth * 0.5, rail_y - 0.25, p.z + 0.8), Vector3(0.04, 0.55, 0.04), metal)
+				any = true
+	# Erker aus Holz (Mashrabiya) in der Altstadt
+	if old and floors >= 2 and r.randf() < 0.55:
+		var wood := Color(0.34, 0.22, 0.13).lerp(wall_c, r.randf_range(0.0, 0.25))
+		var n_e := r.randi_range(1, 3)
+		for e in range(n_e):
+			var along_x2 := r.randf() < 0.5
+			var sg := 1.0 if r.randf() < 0.5 else -1.0
+			var f2 := r.randi_range(1, floors - 1)
+			var len2: float = sz.x if along_x2 else sz.z
+			var off2 := r.randf_range(-len2 * 0.35, len2 * 0.35)
+			var y2 := f2 * 3.3 + 1.7
+			var dep := 0.5
+			var pe := Vector3(off2, y2, sg * (sz.z * 0.5 + dep * 0.5 - 0.02)) if along_x2 else Vector3(sg * (sz.x * 0.5 + dep * 0.5 - 0.02), y2, off2)
+			var de := Vector3(1.9, 2.1, dep) if along_x2 else Vector3(dep, 2.1, 1.9)
+			mb.box(pe, de, wood)
+			mb.box(pe + Vector3(0, 1.1, 0), de + Vector3(0.1, 0.1, 0.1) * (1.0 if along_x2 else 1.0), wood * 0.8)
+			# Gitterlinien
+			for g in range(-2, 3):
+				if along_x2:
+					mb.box(Vector3(pe.x + g * 0.34, pe.y, pe.z + sg * (dep * 0.5 + 0.01)), Vector3(0.05, 1.9, 0.03), wood * 1.35)
+				else:
+					mb.box(Vector3(pe.x + sg * (dep * 0.5 + 0.01), pe.y, pe.z + g * 0.34), Vector3(0.03, 1.9, 0.05), wood * 1.35)
+			any = true
+	# Klimageraete an den Waenden
+	var n_ac := r.randi_range(0, 4) if not old else r.randi_range(0, 2)
+	for a in range(n_ac):
+		var ax := r.randf() < 0.5
+		var sa := 1.0 if r.randf() < 0.5 else -1.0
+		var la: float = sz.x if ax else sz.z
+		var offa := r.randf_range(-la * 0.4, la * 0.4)
+		var ya := r.randi_range(0, maxi(floors - 1, 0)) * 3.3 + 2.3
+		var pa := Vector3(offa, ya, sa * (sz.z * 0.5 + 0.17)) if ax else Vector3(sa * (sz.x * 0.5 + 0.17), ya, offa)
+		var da := Vector3(0.75, 0.5, 0.36) if ax else Vector3(0.36, 0.5, 0.75)
+		mb.box(pa, da, Color(0.78, 0.78, 0.76))
+		if ax:
+			mb.box(pa + Vector3(0, 0, sa * 0.19), Vector3(0.5, 0.34, 0.04), Color(0.2, 0.2, 0.22))
+		else:
+			mb.box(pa + Vector3(sa * 0.19, 0, 0), Vector3(0.04, 0.34, 0.5), Color(0.2, 0.2, 0.22))
+		any = true
+	# Schattendach auf der Terrasse
+	if r.randf() < 0.2 and sz.x > 7.0 and sz.z > 6.0 and free.y - free.x > 0.9:
+		var px := r.randf_range(-sz.x * 0.25, sz.x * 0.25)
+		var pz := r.randf_range(-sz.z * 0.2, sz.z * 0.2)
+		var cloth: Color = AWNINGS[r.randi() % AWNINGS.size()]
+		for cx in [-1.5, 1.5]:
+			for cz in [-1.1, 1.1]:
+				mb.box(Vector3(px + cx, sz.y + 1.2, pz + cz), Vector3(0.07, 2.4, 0.07), Color(0.25, 0.22, 0.2))
+		mb.box(Vector3(px, sz.y + 2.45, pz), Vector3(3.4, 0.06, 2.6), cloth)
+		any = true
+	# Kuppelhaeuschen auf dem Dach
+	if r.randf() < 0.09 and sz.x > 7.0 and sz.z > 7.0 and free.y - free.x > 0.9:
+		var dp := Vector3(r.randf_range(-sz.x * 0.2, sz.x * 0.2), sz.y, r.randf_range(-sz.z * 0.2, sz.z * 0.2))
+		var dome_c := Color(0.9, 0.88, 0.8) if r.randf() < 0.6 else Color(0.35, 0.55, 0.55)
+		mb.cyl(dp + Vector3(0, 0.6, 0), 1.35, 1.35, 1.2, trim_col, 12)
+		mb.sphere(dp + Vector3(0, 1.2, 0), 1.45, dome_c, Vector3(1, 0.85, 1), 5, 12, true)
+		mb.cyl(dp + Vector3(0, 2.6, 0), 0.05, 0.02, 0.6, Color(0.85, 0.7, 0.25), 5)
+		any = true
+	if any:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mb.build(Gfx.vcol_mat(0.9, 0.0))
+		root.add_child(mi)
+	return free
+
+func _roof_details(root: Node3D, b: Dictionary, wall_c: Color, roof_x: Vector2 = Vector2(-1.0, 1.0)) -> void:
 	var sz: Vector3 = b.size
 	var y := sz.y
 	var hx := sz.x * 0.5 - 1.2
 	var hz := sz.z * 0.5 - 1.2
 	if hx < 0.5 or hz < 0.5:
 		return
+	var x0 := hx * roof_x.x
+	var x1 := hx * roof_x.y
 	var mb := MeshBuilder.new()
 	mb.ao_strength = 0.25
 	var any := false
 	# Treppenhaus
 	if rng.randf() < 0.55 and sz.x > 6 and sz.z > 6:
 		var s := Vector3(rng.randf_range(2.0, 3.2), 2.4, rng.randf_range(2.0, 3.0))
-		var p := Vector3(rng.randf_range(-hx, hx), y + s.y * 0.5, rng.randf_range(-hz, hz))
+		var p := Vector3(rng.randf_range(x0, x1), y + s.y * 0.5, rng.randf_range(-hz, hz))
 		mb.box(p, s, wall_c.lerp(Color(1, 0.97, 0.9), 0.35))
 		mb.box(p + Vector3(0, -0.4, s.z * 0.5 + 0.01), Vector3(0.9, 1.4, 0.05), Color(0.2, 0.17, 0.15))
 		any = true
 	# Wassertank
 	if rng.randf() < 0.4:
-		var p := Vector3(rng.randf_range(-hx, hx), y, rng.randf_range(-hz, hz))
+		var p := Vector3(rng.randf_range(x0, x1), y, rng.randf_range(-hz, hz))
 		_add_roof_prop(root, "watertank", p)
 	if rng.randf() < 0.4:
-		_add_roof_prop(root, "dish", Vector3(rng.randf_range(-hx, hx), y, rng.randf_range(-hz, hz)), rng.randf() * 360.0)
+		_add_roof_prop(root, "dish", Vector3(rng.randf_range(x0, x1), y, rng.randf_range(-hz, hz)), rng.randf() * 360.0)
 	if rng.randf() < 0.28:
-		var p := Vector3(rng.randf_range(-hx, hx), y, rng.randf_range(-hz, hz))
+		var p := Vector3(rng.randf_range(x0, x1), y, rng.randf_range(-hz, hz))
 		_add_roof_prop(root, "solar", p, 90.0 * rng.randi_range(0, 3))
 	# Antennen
 	if rng.randf() < 0.3:
-		var p := Vector3(rng.randf_range(-hx, hx), y + 2.2, rng.randf_range(-hz, hz))
+		var p := Vector3(rng.randf_range(x0, x1), y + 2.2, rng.randf_range(-hz, hz))
 		mb.cyl(p, 0.05, 0.03, 4.4, Color(0.3, 0.3, 0.3), 4)
 		mb.box(p + Vector3(0, 1.5, 0), Vector3(1.4, 0.05, 0.05), Color(0.3, 0.3, 0.3))
 		any = true
 	# Waescheleine mit bunten Tuechern
-	if rng.randf() < 0.22 and sz.x > 7:
+	if rng.randf() < 0.22 and sz.x > 7 and roof_x.y - roof_x.x > 1.9:
 		var z0 := rng.randf_range(-hz, hz)
 		for i in range(5):
 			var cc: Color = [Color(0.9, 0.9, 0.85), Color(0.8, 0.3, 0.2), Color(0.3, 0.45, 0.75), Color(0.9, 0.8, 0.3)][rng.randi() % 4]

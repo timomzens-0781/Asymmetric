@@ -298,11 +298,11 @@ func _district_tick(dt: float) -> void:
 			continue
 		sm.puff -= dt
 		if sm.puff <= 0.0:
-			sm.puff = 1.3
+			sm.puff = 1.5
 			for k in range(3):
 				var a := randf() * TAU
-				var rr: float = sqrt(randf()) * sm.r * 0.8
-				fx.dust_cloud(sm.pos + Vector3(cos(a) * rr, 0, sin(a) * rr), 4.2, Color(0.82, 0.83, 0.86))
+				var rr: float = sqrt(randf()) * sm.r * 0.85
+				fx.dust_cloud(sm.pos + Vector3(cos(a) * rr, 0, sin(a) * rr), 5.0, Color(0.7, 0.71, 0.74))
 	# Korridore
 	for c in corridors.duplicate():
 		c.t -= dt

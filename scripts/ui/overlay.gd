@@ -45,6 +45,7 @@ func _draw() -> void:
 					draw_arc(p, 8, 0, TAU, 12, Color(1.0, 0.3, 0.2), 2.0)
 	_draw_tunnels(font, vp, pt)
 	_draw_patrols(vp)
+	_draw_jam(font, vp, pt)
 	_draw_anger(font, vp)
 	_draw_fire_alerts(font)
 	# Auswahlrahmen
@@ -72,6 +73,21 @@ func _draw() -> void:
 		_label_box(font, m + Vector2(18, 22), txt, Color(1, 0.9, 0.5))
 
 ## Patrouillenrouten der gewaehlten Einheiten und die gerade gesetzten Wegpunkte
+func _draw_jam(font: Font, vp: Rect2, pt: int) -> void:
+	if Game.jam_t <= 0.0:
+		return
+	var fl := 0.6 + 0.4 * sin(_t * 13.0)
+	var txt := ("FUNKSTÖRUNG – Drohnen, Präzisionsschläge und Radar ausgefallen (%d s)" if pt == U.TEAM_ADF else "STÖRSENDER AKTIV – %d s") % int(ceil(Game.jam_t))
+	var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	var bx := vp.size.x * 0.5 - tw * 0.5
+	draw_rect(Rect2(bx - 14, 96, tw + 28, 28), Color(0.25, 0.02, 0.02, 0.7 * fl))
+	draw_string(font, Vector2(bx, 116), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.45, 0.4, fl))
+	if pt == U.TEAM_ADF:
+		# Bildrauschen: waagerechte Stoerlinien
+		for i in range(6):
+			var yy := fmod(_t * 220.0 + i * 131.0, vp.size.y - 150.0) + 70.0
+			draw_rect(Rect2(0, yy, vp.size.x, 1.5 + float(i % 3)), Color(1.0, 0.5, 0.45, 0.07))
+
 func _draw_patrols(vp: Rect2) -> void:
 	var col := Color(0.45, 0.85, 1.0, 0.85)
 	for e in player.selected:
@@ -256,6 +272,10 @@ func _draw_unit(u: Unit, font: Font, vp: Rect2, pt: int, near: bool) -> void:
 	var yoff := -10.0
 	if u.shield_t > 0.0:
 		var pulse := 0.65 + 0.35 * sin(_t * 6.0)
+		if u.shield_anchor != null and is_instance_valid(u.shield_anchor) and u.shield_anchor.alive:
+			var ah := u.shield_anchor.global_position + Vector3(0, 1.4, 0)
+			if _on_screen(ah):
+				draw_dashed_line(p + Vector2(0, 10), _sp(ah), Color(1.0, 0.7, 0.15, 0.45), 1.5, 5.0)
 		draw_arc(p + Vector2(0, 8), 9.0, 0, TAU, 14, Color(1.0, 0.7, 0.15, pulse), 2.0)
 		if near:
 			draw_string(font, p + Vector2(-18, -4), "SCHILD", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1.0, 0.75, 0.2, pulse))

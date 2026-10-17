@@ -61,3 +61,5 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
   Garnisonierter wird in `World._vis_tick` um denselben Bonus erweitert. Infoleiste zeigt Besatzungs-Symbole (`InfoPanel`), Rechtsklick bei gewähltem Haus führt heraus.
 * Tests einzeln: `-- only=<Name>` (z. B. `only=reb_tricks`, `only=garrison_fire`), `REPEAT=n` als Umgebungsvariable wiederholt den Test.
 * Gebäude-Verdacht: `Structure.suspicion`/`add_suspicion`/`note_traffic`/`observed_by_adf`; Durchsuchen = `cmd_storm` mit `SEARCH_TIME` (5 s); `AiAdf._investigate`. Test: `only=suspicion_search`.
+* Hilfe: `Screens.show_help` (Tabs aus `Data.ABILITIES`/`Data.UNITS`, Reihenfolge in `Data.ABILITY_ORDER`), Taste F12 in `main.gd`. Neue Fähigkeiten/Einheiten tauchen automatisch auf – `desc` pflegen.
+* Gebäudevielfalt: `City._massing_and_details` (Staffelgeschoss, Balkone, Mashrabiya, Klimageräte, Schattendach, Kuppeln) nutzt einen eigenen RNG je Gebäude (`b.id`), damit das Stadtlayout/Seed unverändert bleibt.

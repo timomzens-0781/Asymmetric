@@ -601,9 +601,7 @@ func _key(k: InputEventKey) -> void:
 				rig.focus_on(_centroid(selected))
 
 func ability_order() -> Array:
-	if team == U.TEAM_ADF:
-		return ["precision", "salvo", "airstrike", "warning", "scan", "evidence", "convoy", "fieldhosp", "corridor", "briefing"]
-	return ["upload", "donate", "shield", "staged", "jam", "smoke"]
+	return Data.ABILITY_ORDER[team]
 
 func _centroid(arr: Array) -> Vector3:
 	var c := Vector3.ZERO

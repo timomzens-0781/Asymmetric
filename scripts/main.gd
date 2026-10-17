@@ -235,6 +235,14 @@ func _unhandled_input(ev: InputEvent) -> void:
 		var k := (ev as InputEventKey).keycode
 		if k == KEY_ESCAPE and state == "paused":
 			_resume()
+		elif k == KEY_F12:
+			if screens.help_root.visible:
+				screens._close_help()
+			elif state == "playing":
+				_pause()
+				screens.show_help(-1, "pause")
+			elif state == "paused":
+				screens.show_help(-1, "pause")
 		elif k == KEY_F11:
 			var m := DisplayServer.window_get_mode()
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if m == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
