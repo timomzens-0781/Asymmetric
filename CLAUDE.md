@@ -63,3 +63,26 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
 * Gebäude-Verdacht: `Structure.suspicion`/`add_suspicion`/`note_traffic`/`observed_by_adf`; Durchsuchen = `cmd_storm` mit `SEARCH_TIME` (5 s); `AiAdf._investigate`. Test: `only=suspicion_search`.
 * Hilfe: `Screens.show_help` (Tabs aus `Data.ABILITIES`/`Data.UNITS`, Reihenfolge in `Data.ABILITY_ORDER`), Taste F12 in `main.gd`. Neue Fähigkeiten/Einheiten tauchen automatisch auf – `desc` pflegen.
 * Gebäudevielfalt: `City._massing_and_details` (Staffelgeschoss, Balkone, Mashrabiya, Klimageräte, Schattendach, Kuppeln) nutzt einen eigenen RNG je Gebäude (`b.id`), damit das Stadtlayout/Seed unverändert bleibt.
+
+## Lokal unter Windows arbeiten
+
+Das Projekt wird auch lokal auf dem Windows-PC des Nutzers weiterentwickelt (die Linux-Befehle oben gelten nur für die Cloud-Umgebung).
+
+* Repo-Ordner: `C:\Users\timom\OneDrive\Dokumente\Asymmetric` (Empfehlung: außerhalb von OneDrive, z. B. `C:\Dev\Asymmetric`, sonst Sync-Konflikte in `.git` und `.godot`).
+* Godot: `C:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64.exe` (das Projekt wurde mit Godot 4.3 gebaut – bei Parse- oder Importproblemen mit der neueren Version zuerst `--import` laufen lassen und Warnungen prüfen).
+* PowerShell-Variante der Befehle (Godot-Pfad in eine Variable legen):
+
+```powershell
+$GODOT = "C:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64.exe"
+& $GODOT --headless --path . --import                                              # Import / Klassen-Cache
+& $GODOT --headless --fixed-fps 30 --path . tools/test_mechanics.tscn              # Mechanik-Tests
+& $GODOT --headless --fixed-fps 30 --path . tools/test_mechanics.tscn -- only=reb_tricks   # einzelner Test
+& $GODOT --headless --fixed-fps 30 --path . tools/sim.tscn -- seconds=300 speed=8 demo=0   # KI vs KI
+& $GODOT --path . -- autostart=0 scenario=closeup shot=C:\Temp\s                   # Screenshots (mit Fenster, kein xvfb nötig)
+python tools/gen_audio.py                                                          # Audio neu erzeugen
+```
+
+* Umgebungsvariablen für Tests (z. B. `REPEAT=n`) in PowerShell: `$env:REPEAT = 6`.
+* `xvfb-run`, `/opt/...`-Pfade und `/tmp` gibt es unter Windows nicht – Screenshot-Pfade selbst wählen (Ordner muss existieren).
+* Zeilenenden: Skripte sind LF; `git config core.autocrlf input` verhindert unnötige Diffs.
+* Branch-Stand: Entwicklung lief auf `claude/vibrant-rubin-uinaad`; vor lokalem Arbeiten `git fetch` + `git checkout claude/vibrant-rubin-uinaad` + `git pull`.
