@@ -68,7 +68,7 @@ Mit llvmpipe (Xvfb) rendert alles langsam – `--fixed-fps 30` macht Spielzeit d
 
 Das Projekt wird auch lokal auf dem Windows-PC des Nutzers weiterentwickelt (die Linux-Befehle oben gelten nur für die Cloud-Umgebung).
 
-* Repo-Ordner: `C:\Users\timom\OneDrive\Dokumente\Asymmetric` (Empfehlung: außerhalb von OneDrive, z. B. `C:\Dev\Asymmetric`, sonst Sync-Konflikte in `.git` und `.godot`).
+* Repo-Ordner: `D:\DEV\Asymmetric` (bewusst außerhalb von OneDrive – dort gab es Sync-Konflikte in `.git` und `.godot`; vorher lag er unter `C:\Users\timom\OneDrive\Dokumente\Asymmetric`).
 * Godot: `C:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64.exe` (das Projekt wurde mit Godot 4.3 gebaut – bei Parse- oder Importproblemen mit der neueren Version zuerst `--import` laufen lassen und Warnungen prüfen).
 * PowerShell-Variante der Befehle (Godot-Pfad in eine Variable legen):
 
